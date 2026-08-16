@@ -7,6 +7,9 @@ coverage
 *.local
 .DS_Store
 
+# Local Claude Code dev tooling config (machine-specific absolute paths)
+.claude
+
 # Env files
 .env
 .env.local
