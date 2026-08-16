@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "theme-studio",
+      "runtimeExecutable": "/Users/hasansiddiqui/.nvm/versions/node/v24.19.0/bin/node",
+      "runtimeArgs": ["/Users/hasansiddiqui/Downloads/Programming/my-vsc/theme-studio/node_modules/vite/bin/vite.js", "/Users/hasansiddiqui/Downloads/Programming/my-vsc/theme-studio", "--port", "5174"],
+      "port": 5174
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "name": "theme-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension — no JSON editing, ever.",
+  "keywords": ["vscode", "theme", "vsix", "textmate", "syntax-highlighting", "monaco-editor", "color-theme"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/vscode-theme-studio.git",
+    "directory": "theme-studio"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/vscode-theme-studio/issues"
+  },
+  "homepage": "https://github.com/your-username/vscode-theme-studio#readme",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "monaco-editor": "^0.56.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
+    "jsdom": "^30.0.1",
+    "oxlint": "^1.75.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}
