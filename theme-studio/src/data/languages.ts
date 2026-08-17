@@ -29,20 +29,27 @@ export interface LanguageDef {
   accent: string;
 }
 
+// Grammar files live under `public/grammars/`, fetched at runtime rather
+// than imported as bundler assets. `BASE_URL` (Vite's configured `base`,
+// e.g. `/` on Vercel/Netlify or `/theme-studio/` on GitHub Pages) has to be
+// prepended by hand here since these are plain fetch() paths, not asset
+// references Vite's HTML/JS asset pipeline rewrites for us.
+const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+
 export const LANGUAGES: LanguageDef[] = [
-  { id: 'typescript', label: 'TypeScript', scopeName: 'source.ts', grammarFile: '/grammars/typescript.tmLanguage.json', generate: samples.typescript, accent: '#3178c6' },
-  { id: 'javascript', label: 'JavaScript', scopeName: 'source.js', grammarFile: '/grammars/javascript.tmLanguage.json', generate: samples.javascript, accent: '#e8c547' },
-  { id: 'python', label: 'Python', scopeName: 'source.python', grammarFile: '/grammars/python.tmLanguage.json', generate: samples.python, accent: '#4b8bbe' },
-  { id: 'java', label: 'Java', scopeName: 'source.java', grammarFile: '/grammars/java.tmLanguage.json', generate: samples.java, accent: '#e76f51' },
-  { id: 'csharp', label: 'C#', scopeName: 'source.cs', grammarFile: '/grammars/csharp.tmLanguage.json', generate: samples.csharp, accent: '#9b5de5' },
-  { id: 'cpp', label: 'C++', scopeName: 'source.cpp', grammarFile: '/grammars/cpp.tmLanguage.json', generate: samples.cpp, accent: '#5c9ce6' },
-  { id: 'go', label: 'Go', scopeName: 'source.go', grammarFile: '/grammars/go.tmLanguage.json', generate: samples.go, accent: '#4dd0c4' },
-  { id: 'rust', label: 'Rust', scopeName: 'source.rust', grammarFile: '/grammars/rust.tmLanguage.json', generate: samples.rust, accent: '#dd7b5f' },
-  { id: 'php', label: 'PHP', scopeName: 'source.php', grammarFile: '/grammars/php.tmLanguage.json', generate: samples.php, accent: '#8b8bd8' },
-  { id: 'html', label: 'HTML', scopeName: 'text.html.basic', grammarFile: '/grammars/html.tmLanguage.json', generate: samples.html, accent: '#e6714b' },
-  { id: 'css', label: 'CSS', scopeName: 'source.css', grammarFile: '/grammars/css.tmLanguage.json', generate: samples.css, accent: '#4f9ee6' },
-  { id: 'json', label: 'JSON', scopeName: 'source.json', grammarFile: '/grammars/json.tmLanguage.json', generate: samples.json, accent: '#9aa5b1' },
-  { id: 'sql', label: 'SQL', scopeName: 'source.sql', grammarFile: '/grammars/sql.tmLanguage.json', generate: samples.sql, accent: '#4dbd8c' },
+  { id: 'typescript', label: 'TypeScript', scopeName: 'source.ts', grammarFile: assetUrl('grammars/typescript.tmLanguage.json'), generate: samples.typescript, accent: '#3178c6' },
+  { id: 'javascript', label: 'JavaScript', scopeName: 'source.js', grammarFile: assetUrl('grammars/javascript.tmLanguage.json'), generate: samples.javascript, accent: '#e8c547' },
+  { id: 'python', label: 'Python', scopeName: 'source.python', grammarFile: assetUrl('grammars/python.tmLanguage.json'), generate: samples.python, accent: '#4b8bbe' },
+  { id: 'java', label: 'Java', scopeName: 'source.java', grammarFile: assetUrl('grammars/java.tmLanguage.json'), generate: samples.java, accent: '#e76f51' },
+  { id: 'csharp', label: 'C#', scopeName: 'source.cs', grammarFile: assetUrl('grammars/csharp.tmLanguage.json'), generate: samples.csharp, accent: '#9b5de5' },
+  { id: 'cpp', label: 'C++', scopeName: 'source.cpp', grammarFile: assetUrl('grammars/cpp.tmLanguage.json'), generate: samples.cpp, accent: '#5c9ce6' },
+  { id: 'go', label: 'Go', scopeName: 'source.go', grammarFile: assetUrl('grammars/go.tmLanguage.json'), generate: samples.go, accent: '#4dd0c4' },
+  { id: 'rust', label: 'Rust', scopeName: 'source.rust', grammarFile: assetUrl('grammars/rust.tmLanguage.json'), generate: samples.rust, accent: '#dd7b5f' },
+  { id: 'php', label: 'PHP', scopeName: 'source.php', grammarFile: assetUrl('grammars/php.tmLanguage.json'), generate: samples.php, accent: '#8b8bd8' },
+  { id: 'html', label: 'HTML', scopeName: 'text.html.basic', grammarFile: assetUrl('grammars/html.tmLanguage.json'), generate: samples.html, accent: '#e6714b' },
+  { id: 'css', label: 'CSS', scopeName: 'source.css', grammarFile: assetUrl('grammars/css.tmLanguage.json'), generate: samples.css, accent: '#4f9ee6' },
+  { id: 'json', label: 'JSON', scopeName: 'source.json', grammarFile: assetUrl('grammars/json.tmLanguage.json'), generate: samples.json, accent: '#9aa5b1' },
+  { id: 'sql', label: 'SQL', scopeName: 'source.sql', grammarFile: assetUrl('grammars/sql.tmLanguage.json'), generate: samples.sql, accent: '#4dbd8c' },
 ];
 
 export const LANGUAGE_BY_ID = new Map(LANGUAGES.map((l) => [l.id, l]));
@@ -52,8 +59,8 @@ export const LANGUAGE_BY_ID = new Map(LANGUAGES.map((l) => [l.id, l]));
 // resolve cross-grammar `include` references instead of falling back to
 // plain, unstyled text for those embedded regions.
 export const AUX_GRAMMARS: Record<string, string> = {
-  'source.js': '/grammars/javascript.tmLanguage.json',
-  'source.css': '/grammars/css.tmLanguage.json',
-  'text.html.basic': '/grammars/html.tmLanguage.json',
-  'source.cpp.embedded.macro': '/grammars/cpp.embedded.macro.tmLanguage.json',
+  'source.js': assetUrl('grammars/javascript.tmLanguage.json'),
+  'source.css': assetUrl('grammars/css.tmLanguage.json'),
+  'text.html.basic': assetUrl('grammars/html.tmLanguage.json'),
+  'source.cpp.embedded.macro': assetUrl('grammars/cpp.embedded.macro.tmLanguage.json'),
 };

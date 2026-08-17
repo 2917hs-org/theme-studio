@@ -18,6 +18,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:gh-pages": "tsc -b && vite build --base=/theme-studio/",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
