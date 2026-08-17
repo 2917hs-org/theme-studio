@@ -1,0 +1,26 @@
+name: Release
+
+# Fires only when a version tag (e.g. v1.0.0) is pushed — cutting a release
+# is a deliberate, manual act (git tag && git push --tags), not something
+# that happens automatically on every merge to main.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --generate-notes asks GitHub to compile the changelog itself from
+        # merged PRs/commits since the previous tag — no changelog file to
+        # hand-maintain.
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
