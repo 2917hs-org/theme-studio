@@ -33,6 +33,17 @@ Deploy configs for both [Vercel](theme-studio/vercel.json) and [Netlify](theme-s
 
 Before going live, replace the placeholder `https://your-domain-here.example` domain in [`theme-studio/index.html`](theme-studio/index.html) and [`theme-studio/public/sitemap.xml`](theme-studio/public/sitemap.xml)/[`robots.txt`](theme-studio/public/robots.txt) with the deployed site's real origin.
 
+## Releases
+
+Cutting a release is manual: tag a commit on `main` (once its CI run is green) and push the tag. `.github/workflows/release.yml` picks it up and creates a GitHub Release with notes auto-generated from the commits/PRs since the previous tag.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Use [semantic versioning](https://semver.org/) (`vMAJOR.MINOR.PATCH`) — the workflow only triggers on tags matching that shape.
+
 ## License
 
 [MIT](LICENSE)
