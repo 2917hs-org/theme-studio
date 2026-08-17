@@ -2,7 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # `release` is the stable branch that's actually live — main is active
+    # dev and doesn't publish anything on its own.
+    branches: [release]
   # Lets you trigger a redeploy from the Actions tab without pushing.
   workflow_dispatch:
 
