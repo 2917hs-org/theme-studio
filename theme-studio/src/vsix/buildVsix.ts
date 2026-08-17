@@ -28,7 +28,7 @@ function modesFor(selection: ExportSelection): ThemeMode[] {
 // to a size VS Code's Extensions view and Marketplace listing expect. It's
 // a static public asset, so fetching it here (rather than importing it as
 // a build asset) keeps this module free of bundler-specific asset syntax.
-const ICON_PATH = '/icon-192.png';
+const ICON_PATH = `${import.meta.env.BASE_URL}icon-192.png`;
 
 async function fetchIconBytes(): Promise<Uint8Array | null> {
   try {
