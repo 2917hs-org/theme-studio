@@ -1,6 +1,6 @@
 # VS Code Theme Studio
 
-[![CI](https://github.com/2917hs/my-vsc/actions/workflows/ci.yml/badge.svg)](https://github.com/2917hs/my-vsc/actions/workflows/ci.yml)
+[![CI](https://github.com/2917hs-org/theme-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/2917hs-org/theme-studio/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension (`.vsix`) — no JSON editing, ever. Runs entirely in the browser: click any token in a live Monaco editor, see its real TextMate scope, pick a color, and export.
