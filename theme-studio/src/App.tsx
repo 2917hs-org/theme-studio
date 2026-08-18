@@ -148,7 +148,7 @@ function AppInner() {
         </div>
       </header>
 
-      <PresetPicker />
+      <PresetPicker onImported={showToast} />
 
       <LanguagePicker selected={language} onSelect={handleSelectLanguage} onRegenerate={handleRegenerate} />
 
