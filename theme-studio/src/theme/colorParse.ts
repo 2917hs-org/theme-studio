@@ -3,12 +3,15 @@
 export function parseColorToHex(input: string): string | null {
   const s = input.trim();
 
-  const hexMatch = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+  const hexMatch = /^#?([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(s);
   if (hexMatch) {
     let hex = hexMatch[1];
     if (hex.length === 3) {
       hex = hex.split('').map((c) => c + c).join('');
     }
+    // 8 digits is #rrggbbaa (VS Code themes use this for translucent
+    // colors) — alpha isn't representable in our storage, so drop it.
+    if (hex.length === 8) hex = hex.slice(0, 6);
     return `#${hex.toLowerCase()}`;
   }
 
@@ -110,7 +113,7 @@ export function contrastRatio(hexA: string, hexB: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function relativeLuminance(hex: string): number {
+export function relativeLuminance(hex: string): number {
   const h = hex.replace('#', '');
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
   const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
