@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!-- No production domain was known at authoring time, so every absolute
-         URL below (og:url, og:image, twitter:image, canonical, JSON-LD
-         "url") uses https://your-domain-here.example as a placeholder.
-         Once deployed, search the repo for "your-domain-here.example" and
-         replace every occurrence — including public/sitemap.xml — with the
-         real origin. Most crawlers require absolute URLs to render previews. -->
+    <!-- Absolute URLs below (og:url, og:image, twitter:image, canonical,
+         JSON-LD "url") point at the GitHub Pages project-site origin for
+         this repo (2917hs-org/theme-studio → 2917hs-org.github.io/theme-studio/),
+         matching the --base the deploy workflow builds with. If this repo
+         is ever renamed or moved to a custom domain, update every
+         occurrence here and in public/sitemap.xml + public/robots.txt —
+         most crawlers require absolute URLs to render previews. -->
 
     <!-- Same brand mark everywhere: the SVG is the source of truth, with
          rasterized copies for surfaces that can't use it (old browsers,
@@ -18,7 +19,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="canonical" href="https://your-domain-here.example/" />
+    <link rel="canonical" href="https://2917hs-org.github.io/theme-studio/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)" />
@@ -38,17 +39,14 @@
 
     <!-- Open Graph / social preview -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://your-domain-here.example/" />
+    <meta property="og:url" content="https://2917hs-org.github.io/theme-studio/" />
     <meta property="og:site_name" content="VS Code Theme Studio" />
     <meta property="og:title" content="VS Code Theme Studio — Build a Custom VS Code Color Theme Visually" />
     <meta
       property="og:description"
       content="Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension."
     />
-    <!-- og:image/twitter:image must be absolute URLs for most crawlers to
-         render a preview — replace the placeholder domain once deployed
-         (see the note at the top of <head>). -->
-    <meta property="og:image" content="https://your-domain-here.example/og-image.png" />
+    <meta property="og:image" content="https://2917hs-org.github.io/theme-studio/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="VS Code Theme Studio — a code editor preview with a color picker assigning syntax colors" />
@@ -60,14 +58,14 @@
       name="twitter:description"
       content="Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension."
     />
-    <meta name="twitter:image" content="https://your-domain-here.example/og-image.png" />
+    <meta name="twitter:image" content="https://2917hs-org.github.io/theme-studio/og-image.png" />
 
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "VS Code Theme Studio",
-        "url": "https://your-domain-here.example/",
+        "url": "https://2917hs-org.github.io/theme-studio/",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "Any",
         "description": "Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension — no JSON editing, ever.",
