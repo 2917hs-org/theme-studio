@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { ThemeMode } from '../theme/mode';
 import type { ChromeOverride } from '../theme/chrome';
+import type { ImportedTheme } from '../theme/importTheme';
 
 export type { ChromeOverride };
 
@@ -35,6 +36,8 @@ interface AssignmentsContextValue {
   clearColor: (scope: string, mode?: ThemeMode) => void;
   /** Clears every color assignment in both modes, but leaves the theme name alone. */
   clearAllColors: () => void;
+  /** Replaces the theme name, and the assignments/chrome for each mode an import produced — modes it didn't touch are left as-is. Also switches the active mode to the first imported variant. */
+  importTheme: (theme: ImportedTheme) => void;
   /** Most-recently-used colors across both modes, newest first — a personal palette shortcut. */
   recentColors: string[];
   /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors. */
@@ -92,6 +95,21 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
 
   const chromeFor = useCallback((m: ThemeMode) => chromeByMode[m], [chromeByMode]);
 
+  const importTheme = useCallback((theme: ImportedTheme) => {
+    setThemeName(theme.name);
+    setAssignmentsByMode((prev) => {
+      const next = { ...prev };
+      for (const variant of theme.variants) next[variant.mode] = variant.assignments;
+      return next;
+    });
+    setChromeByMode((prev) => {
+      const next = { ...prev };
+      for (const variant of theme.variants) next[variant.mode] = variant.chrome;
+      return next;
+    });
+    setMode(theme.variants[0].mode);
+  }, []);
+
   const resetAll = useCallback(() => {
     setMode('light');
     setAssignmentsByMode(emptyAssignmentsByMode());
@@ -114,6 +132,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      importTheme,
       recentColors,
       resetAll,
     }),
@@ -128,6 +147,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      importTheme,
       recentColors,
       resetAll,
     ],
