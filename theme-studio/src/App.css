@@ -327,6 +327,59 @@ button {
   flex: none;
 }
 
+.preset-import {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.import-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.import-theme-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--hover-border);
+  color: var(--text);
+}
+
+.import-theme-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.preset-import-error {
+  font-size: 11.5px;
+  color: var(--danger-text-strong);
+  max-width: 240px;
+}
+
 /* ---------- Language picker ---------- */
 
 .language-picker {
