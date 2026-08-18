@@ -197,7 +197,7 @@ button {
   gap: 5px;
   background: transparent;
   color: var(--text-dim);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 5px 10px;
   font-size: 11.5px;
@@ -216,7 +216,7 @@ button {
 .mode-toggle {
   display: flex;
   background: var(--bg-inset);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: 8px;
   padding: 2px;
   gap: 2px;
@@ -244,7 +244,7 @@ button {
 .mode-toggle-btn-active {
   background: var(--bg-raised);
   color: var(--text-strong);
-  box-shadow: 0 0 0 1px var(--border-soft);
+  box-shadow: 0 0 0 1px var(--text-dim);
 }
 
 /* Same pill toggle as the header's editing-mode control, stretched to fill
@@ -352,7 +352,7 @@ button {
   gap: 5px;
   background: transparent;
   color: var(--text-dim);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 5px 10px;
   font-size: 11.5px;
@@ -403,7 +403,7 @@ button {
   gap: 6px;
   background: var(--bg-raised);
   color: var(--text-dim);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: 14px;
   padding: 5px 12px 5px 9px;
   font-size: 12px;
@@ -438,7 +438,7 @@ button {
   gap: 6px;
   background: transparent;
   color: var(--accent-text);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 11px;
   font-size: 12px;
@@ -489,7 +489,7 @@ button {
   width: 28px;
   height: 28px;
   background: var(--overlay-bg);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   color: var(--text-dim);
   cursor: pointer;
@@ -921,7 +921,7 @@ button {
 
 .clear-color-btn {
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 9px;
@@ -1086,7 +1086,7 @@ button {
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
@@ -1166,7 +1166,7 @@ button {
 .install-btn {
   background: transparent;
   color: var(--accent-text);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
 }
 
 .install-btn:disabled {
@@ -1242,7 +1242,7 @@ button {
   height: 26px;
   padding: 0 9px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   background: transparent;
   color: var(--accent-text);
   font-size: 11.5px;
@@ -1299,6 +1299,36 @@ button {
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1.5;
+}
+
+/* ---------- Share panel ---------- */
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  /* --border/--border-soft are too pale in light mode and nearly invisible
+     against --bg-panel in dark mode — --text-dim reads as a clearly visible
+     mid-gray outline in both themes instead of nearly disappearing in one. */
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.share-btn:hover {
+  background: var(--hover-bg);
 }
 
 /* ---------- Confirm dialog ---------- */
@@ -1358,7 +1388,7 @@ button {
 
 .confirm-cancel-btn {
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text);
 }
 

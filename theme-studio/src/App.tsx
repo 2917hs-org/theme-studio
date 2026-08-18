@@ -5,6 +5,7 @@ import { LanguagePicker } from './components/LanguagePicker';
 import { PresetPicker } from './components/PresetPicker';
 import { InspectorPanel } from './components/InspectorPanel';
 import { ExportPanel } from './components/ExportPanel';
+import { SharePanel } from './components/SharePanel';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Toast, useToast } from './components/Toast';
 import { MaximizeIcon, MinimizeIcon, SpotlightIcon, RotateCcwIcon } from './components/icons';
@@ -193,6 +194,7 @@ function AppInner() {
           <aside className="side-pane">
             <InspectorPanel selection={selection} />
             <ExportPanel />
+            <SharePanel />
           </aside>
         )}
       </main>

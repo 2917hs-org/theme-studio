@@ -101,6 +101,71 @@ export function MinimizeIcon({ size = 14, className }: IconProps) {
   );
 }
 
+export function Share2Icon({ size = 15, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="18" cy="5.5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="18.5" r="2.5" />
+      <path d="M8.2 10.7 15.8 6.8M8.2 13.3l7.6 3.9" />
+    </svg>
+  );
+}
+
+// Share-target marks: a consistent rounded-square badge (stroke, matching
+// the rest of this file) with a letterform standing in for each platform's
+// logo — avoids reproducing actual brand marks pixel-for-pixel while
+// staying recognizable at 16px.
+const badgeLetterProps = {
+  textAnchor: 'middle' as const,
+  fontWeight: 700,
+  fontFamily: 'system-ui, -apple-system, sans-serif',
+  fill: 'currentColor',
+  stroke: 'none',
+};
+
+export function LinkedInIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="9.5" {...badgeLetterProps}>
+        in
+      </text>
+    </svg>
+  );
+}
+
+export function XIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <path d="M8 8l8 8M16 8l-8 8" />
+    </svg>
+  );
+}
+
+export function RedditIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="9" {...badgeLetterProps}>
+        r/
+      </text>
+    </svg>
+  );
+}
+
+export function HackerNewsIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="10.5" {...badgeLetterProps}>
+        Y
+      </text>
+    </svg>
+  );
+}
+
 export function LaunchIcon({ size = 15, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
