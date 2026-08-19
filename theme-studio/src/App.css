@@ -613,23 +613,160 @@ button {
   background: var(--bg-panel);
 }
 
-.panel-section {
-  padding: 16px;
+/* Pinned above the collapsible sections instead of scrolling away with
+   them — both rows here are "which variant" decisions (what you're
+   coloring, what gets bundled at export) that need to be visible before
+   the user dives into Inspect token or Export theme, not discovered later
+   inside a collapsed section. */
+.pinned-controls {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: none;
+  background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.pinned-controls .field-label:last-child {
+  margin-bottom: 0;
+}
+
+.mode-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.mode-toggle-btn-active .mode-toggle-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- Collapsible side-panel sections ---------- */
+
+.collapsible-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-strong);
+  transition: background var(--transition);
+}
+
+.collapsible-header:hover {
+  background: var(--hover-bg);
+}
+
+.collapsible-section-open > .collapsible-header {
+  background: var(--hover-bg);
+}
+
+.collapsible-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: color var(--transition);
+}
+
+.collapsible-section-open > .collapsible-header .collapsible-header-title {
+  color: var(--text-strong);
+}
+
+.collapsible-header-title svg {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.collapsible-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: none;
+}
+
+.collapsible-chevron {
+  flex: none;
+  color: var(--text-dim);
+  transition: transform var(--transition);
+}
+
+.collapsible-chevron-open {
+  transform: rotate(180deg);
+}
+
+.collapsible-badge {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.collapsible-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success-text);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+  padding: 2px 7px;
+}
+
+/* The grid-template-rows 0fr/1fr trick animates height without JS
+   measurement — the inner wrapper's overflow:hidden clips it to that row's
+   computed height at every point in the transition. */
+.collapsible-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms ease;
+}
+
+.collapsible-section-open .collapsible-body {
+  grid-template-rows: 1fr;
+}
+
+.collapsible-body-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 16px;
   font-size: 12px;
   line-height: 1.6;
 }
 
-.panel-section-header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 12px;
+.collapsible-section-open .collapsible-body-inner {
+  padding: 2px 16px 16px;
 }
 
 /* ---------- Empty states ---------- */

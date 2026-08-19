@@ -4,12 +4,11 @@ import type { ChromeOverride } from '../theme/chrome';
 import type { ThemeMode } from '../theme/mode';
 
 // The zip's contents are assembled from three independent pieces —
-// `packageJson`, `vsixManifest`, and the per-mode theme JSON files below.
-// A future export format (e.g. a plain .json theme file with no VSIX
-// wrapper, for users who just want the color values) would slot in as a
-// sibling `buildXyzBlob` function reusing `buildVSCodeTheme` directly,
-// without needing to touch the VSIX-specific packaging here.
-export type ExportSelection = 'dark' | 'light' | 'both';
+// `packageJson`, `vsixManifest`, and the theme JSON file below. A future
+// export format (e.g. a plain .json theme file with no VSIX wrapper, for
+// users who just want the color values) would slot in as a sibling
+// `buildXyzBlob` function reusing `buildVSCodeTheme` directly, without
+// needing to touch the VSIX-specific packaging here.
 
 export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'custom-theme';
@@ -17,11 +16,6 @@ export function slugify(name: string): string {
 
 function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] ?? c);
-}
-
-function modesFor(selection: ExportSelection): ThemeMode[] {
-  if (selection === 'both') return ['dark', 'light'];
-  return [selection];
 }
 
 // Same brand mark as the favicon/header logo (see index.html), rasterized
@@ -43,20 +37,13 @@ async function fetchIconBytes(): Promise<Uint8Array | null> {
 
 export async function buildVsixBlob(
   themeName: string,
-  assignmentsByMode: Record<ThemeMode, Map<string, string>>,
-  selection: ExportSelection,
-  chromeByMode?: Record<ThemeMode, ChromeOverride>,
+  mode: ThemeMode,
+  assignments: Map<string, string>,
+  chrome?: ChromeOverride,
 ): Promise<Blob> {
   const slug = slugify(themeName);
-  const modes = modesFor(selection);
-  const suffixLabel = modes.length > 1;
-
-  const themeEntries = modes.map((mode) => ({
-    mode,
-    label: suffixLabel ? `${themeName} ${mode === 'dark' ? 'Dark' : 'Light'}` : themeName,
-    fileName: `${mode}.json`,
-    theme: buildVSCodeTheme(themeName, mode, assignmentsByMode[mode], chromeByMode?.[mode]),
-  }));
+  const fileName = `${mode}.json`;
+  const theme = buildVSCodeTheme(themeName, mode, assignments, chrome);
 
   const iconBytes = await fetchIconBytes();
 
@@ -70,11 +57,13 @@ export async function buildVsixBlob(
     categories: ['Themes'],
     ...(iconBytes ? { icon: 'icon.png' } : {}),
     contributes: {
-      themes: themeEntries.map((entry) => ({
-        label: entry.label,
-        uiTheme: entry.mode === 'dark' ? 'vs-dark' : 'vs',
-        path: `./themes/${entry.fileName}`,
-      })),
+      themes: [
+        {
+          label: themeName,
+          uiTheme: mode === 'dark' ? 'vs-dark' : 'vs',
+          path: `./themes/${fileName}`,
+        },
+      ],
     },
   };
 
@@ -118,12 +107,10 @@ export async function buildVsixBlob(
     'extension.vsixmanifest': strToU8(vsixManifest),
     '[Content_Types].xml': strToU8(contentTypes),
     'extension/package.json': strToU8(JSON.stringify(packageJson, null, 2)),
+    [`extension/themes/${fileName}`]: strToU8(JSON.stringify(theme, null, 2)),
   };
   if (iconBytes) {
     files['extension/icon.png'] = iconBytes;
-  }
-  for (const entry of themeEntries) {
-    files[`extension/themes/${entry.fileName}`] = strToU8(JSON.stringify(entry.theme, null, 2));
   }
 
   const zipped = zipSync(files, { level: 6 });
