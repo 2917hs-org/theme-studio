@@ -75,6 +75,52 @@ describe('importThemeFile — plain JSON', () => {
   })
 })
 
+// Probing ~300 real Marketplace themes through this app's import path found
+// roughly 45% failed outright — nearly all because their theme JSON is
+// JSONC (trailing commas, `//`/`/* */` comments), which VS Code's own
+// loader tolerates but strict JSON.parse rejects. These lock that fix in.
+describe('importThemeFile — JSONC leniency', () => {
+  it('tolerates a trailing comma', async () => {
+    const raw = `{
+      "type": "dark",
+      "colors": { "editor.background": "#101010", },
+      "tokenColors": [
+        { "scope": "keyword", "settings": { "foreground": "#ff00ff" } },
+      ],
+    }`
+    const file = new File([raw], 'trailing-comma.json', { type: 'application/json' })
+    const theme = await importThemeFile(file)
+    expect(theme.variants[0].assignments.get('keyword')).toBe('#ff00ff')
+  })
+
+  it('tolerates line and block comments', async () => {
+    const raw = `{
+      // a dark theme
+      "type": "dark",
+      "colors": { "editor.background": "#101010" },
+      "tokenColors": [
+        /* keywords */
+        { "scope": "keyword", "settings": { "foreground": "#ff00ff" } }
+      ]
+    }`
+    const file = new File([raw], 'commented.json', { type: 'application/json' })
+    const theme = await importThemeFile(file)
+    expect(theme.variants[0].assignments.get('keyword')).toBe('#ff00ff')
+  })
+
+  it('tolerates a leading byte-order mark', async () => {
+    const raw = '﻿' + JSON.stringify(SAMPLE_THEME)
+    const file = new File([raw], 'bom.json', { type: 'application/json' })
+    const theme = await importThemeFile(file)
+    expect(theme.name).toBe('Sample Theme')
+  })
+
+  it('still rejects content that is not JSON or JSONC at all', async () => {
+    const file = new File(['not json at all, just prose'], 'garbage.json', { type: 'application/json' })
+    await expect(importThemeFile(file)).rejects.toThrow(ImportError)
+  })
+})
+
 describe('importThemeFile — VSIX', () => {
   function buildVsix(themes: Array<{ fileName: string; label: string; uiTheme: string; json: unknown }>): File {
     const files: Record<string, Uint8Array> = {
@@ -137,5 +183,53 @@ describe('importThemeFile — VSIX', () => {
     const renamed = new File([await file.arrayBuffer()], 'my-theme.zip', { type: 'application/zip' })
     const theme = await importThemeFile(renamed)
     expect(theme.variants).toHaveLength(1)
+  })
+
+  it('skips a legacy .tmTheme (plist/XML) variant instead of crashing the whole import', async () => {
+    // Real-world case: some published themes (e.g. "Super One Dark Theme")
+    // still ship a .tmTheme XML file even though package.json correctly
+    // declares a theme contribution. jsonc-parser reads the leading `<` as a
+    // bare JSON value, so parseThemeObject — not parseLenientJson — is what
+    // rejects it; that used to happen outside the per-variant try/catch and
+    // crashed the import with a misleading "Not a valid VS Code theme file."
+    const zipped = zipSync({
+      'extension/package.json': strToU8(
+        JSON.stringify({
+          name: 'tm-theme',
+          displayName: 'TM Theme',
+          contributes: { themes: [{ label: 'TM Theme', uiTheme: 'vs-dark', path: './themes/dark.tmTheme' }] },
+        }),
+      ),
+      'extension/themes/dark.tmTheme': strToU8(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN">\n<plist version="1.0"><dict/></plist>',
+      ),
+    })
+    const file = new File([zipped as BlobPart], 'tm-theme.vsix', { type: 'application/zip' })
+    await expect(importThemeFile(file)).rejects.toThrow(ImportError)
+    await expect(importThemeFile(file)).rejects.toThrow('Could not read any theme files inside this .vsix.')
+  })
+
+  it('tolerates JSONC (trailing commas, comments) in a bundled theme file — the real-world common case', async () => {
+    const rawThemeJsonc = `{
+      // hand-edited theme
+      "type": "dark",
+      "colors": { "editor.background": "#101010", },
+      "tokenColors": [
+        { "scope": "keyword", "settings": { "foreground": "#ff00ff" }, },
+      ],
+    }`
+    const zipped = zipSync({
+      'extension/package.json': strToU8(
+        JSON.stringify({
+          name: 'jsonc-theme',
+          displayName: 'JSONC Theme',
+          contributes: { themes: [{ label: 'JSONC Theme', uiTheme: 'vs-dark', path: './themes/dark.json' }] },
+        }),
+      ),
+      'extension/themes/dark.json': strToU8(rawThemeJsonc),
+    })
+    const file = new File([zipped as BlobPart], 'jsonc-theme.vsix', { type: 'application/zip' })
+    const theme = await importThemeFile(file)
+    expect(theme.variants[0].assignments.get('keyword')).toBe('#ff00ff')
   })
 })
