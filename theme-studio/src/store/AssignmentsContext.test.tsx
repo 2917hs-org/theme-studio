@@ -1,12 +1,20 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AssignmentsProvider, DEFAULT_THEME_NAME, useAssignments } from './AssignmentsContext'
+import { loadPersistedTheme, savePersistedTheme } from './persistedTheme'
 
 function setup() {
   return renderHook(() => useAssignments(), { wrapper: AssignmentsProvider })
 }
 
 describe('AssignmentsContext', () => {
+  // Every test starts from a clean autosave slate — this context reads
+  // localStorage on mount (see persistedTheme.ts), so a previous test's
+  // state must never leak into the next one's initial render.
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('starts empty, in light mode, with the default theme name', () => {
     const { result } = setup()
     expect(result.current.mode).toBe('light')
@@ -94,5 +102,131 @@ describe('AssignmentsContext', () => {
 
   it('throws when used outside a provider', () => {
     expect(() => renderHook(() => useAssignments())).toThrow(/useAssignments must be used within/)
+  })
+
+  describe('importTheme', () => {
+    it('replaces both modes wholesale, clearing a mode the incoming theme leaves undefined', () => {
+      const { result } = setup()
+      // Simulate an earlier import that set up both dark and light.
+      act(() => {
+        result.current.setColor('keyword', '#111111', 'dark')
+        result.current.setColor('string', '#222222', 'light')
+        result.current.setChrome('light', { background: '#eeeeee' })
+      })
+
+      // A second, dark-only theme (the common case — most Marketplace
+      // themes ship one variant) must fully replace the first, not merge
+      // into it — light should end up empty, not keep '#222222'.
+      act(() => {
+        result.current.importTheme({
+          name: 'Dark Only Theme',
+          variants: [{ mode: 'dark', chrome: { background: '#000000' }, assignments: new Map([['keyword', '#ff0000']]) }],
+        })
+      })
+
+      expect(result.current.assignmentsFor('dark')).toEqual(new Map([['keyword', '#ff0000']]))
+      expect(result.current.assignmentsFor('light').size).toBe(0)
+      expect(result.current.chromeFor('dark')).toEqual({ background: '#000000' })
+      expect(result.current.chromeFor('light')).toEqual({})
+      expect(result.current.themeName).toBe('Dark Only Theme')
+      expect(result.current.mode).toBe('dark')
+    })
+
+    it('clears recent colors — the picker should not show swatches from a theme that was just replaced', () => {
+      const { result } = setup()
+      act(() => {
+        result.current.setColor('keyword', '#111111', 'dark')
+        result.current.setColor('string', '#222222', 'dark')
+      })
+      expect(result.current.recentColors.length).toBeGreaterThan(0)
+
+      act(() => {
+        result.current.importTheme({
+          name: 'Fresh Theme',
+          variants: [{ mode: 'dark', chrome: {}, assignments: new Map([['keyword', '#ff0000']]) }],
+        })
+      })
+
+      expect(result.current.recentColors).toEqual([])
+    })
+
+    it('sets both modes from a two-variant theme', () => {
+      const { result } = setup()
+      act(() => {
+        result.current.importTheme({
+          name: 'Two Variant Theme',
+          variants: [
+            { mode: 'dark', chrome: {}, assignments: new Map([['keyword', '#111111']]) },
+            { mode: 'light', chrome: {}, assignments: new Map([['keyword', '#222222']]) },
+          ],
+        })
+      })
+      expect(result.current.assignmentsFor('dark').get('keyword')).toBe('#111111')
+      expect(result.current.assignmentsFor('light').get('keyword')).toBe('#222222')
+    })
+  })
+
+  describe('autosave', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('wasRestored is false on a fresh session', () => {
+      const { result } = setup()
+      expect(result.current.wasRestored).toBe(false)
+    })
+
+    it('restores mode, assignments, chrome, and theme name from a saved session', () => {
+      savePersistedTheme({
+        version: 1,
+        mode: 'dark',
+        themeName: 'Restored Theme',
+        assignments: { dark: [['keyword', '#ff0000']], light: [] },
+        chrome: { dark: { background: '#000000' }, light: {} },
+      })
+      const { result } = setup()
+      expect(result.current.wasRestored).toBe(true)
+      expect(result.current.mode).toBe('dark')
+      expect(result.current.themeName).toBe('Restored Theme')
+      expect(result.current.assignmentsFor('dark').get('keyword')).toBe('#ff0000')
+      expect(result.current.chromeFor('dark')).toEqual({ background: '#000000' })
+    })
+
+    it('wasRestored is false for a saved-but-empty session', () => {
+      savePersistedTheme({ version: 1, mode: 'light', themeName: DEFAULT_THEME_NAME, assignments: {}, chrome: {} })
+      const { result } = setup()
+      expect(result.current.wasRestored).toBe(false)
+    })
+
+    it('debounces writes and persists the latest state', () => {
+      vi.useFakeTimers()
+      const { result } = setup()
+      act(() => {
+        result.current.setColor('keyword', '#00ff00', 'dark')
+      })
+      // Still within the debounce window — nothing written yet.
+      expect(loadPersistedTheme()).toBeNull()
+
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      const saved = loadPersistedTheme()
+      expect(saved?.assignments.dark).toEqual([['keyword', '#00ff00']])
+    })
+
+    it('resetAll clears the persisted session', () => {
+      vi.useFakeTimers()
+      const { result } = setup()
+      act(() => {
+        result.current.setColor('keyword', '#00ff00', 'dark')
+      })
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      expect(loadPersistedTheme()).not.toBeNull()
+
+      act(() => result.current.resetAll())
+      expect(loadPersistedTheme()).toBeNull()
+    })
   })
 })
