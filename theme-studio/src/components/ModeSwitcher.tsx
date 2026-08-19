@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
+import { defaultBackgroundFor } from '../theme/baseline';
+import { parseColorToHex } from '../theme/colorParse';
 import { MoonIcon, SunIcon } from './icons';
 
 const MODES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
@@ -17,7 +19,37 @@ const MODES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
  * Export section will bundle — all three follow this one choice.
  */
 export function ModeSwitcher() {
-  const { mode, setMode, assignmentsFor } = useAssignments();
+  const { mode, setMode, assignmentsFor, chrome, setChrome } = useAssignments();
+  const [draft, setDraft] = useState(chrome.background ?? '');
+  const [error, setError] = useState<string | null>(null);
+
+  // Resyncs the draft text field when the active mode changes (Dark and
+  // Light each have their own background override) or when the background
+  // is changed from elsewhere (e.g. a preset or an imported theme).
+  useEffect(() => {
+    setDraft(chrome.background ?? '');
+    setError(null);
+  }, [mode, chrome.background]);
+
+  function commit(hex: string) {
+    setError(null);
+    setChrome(mode, { background: hex });
+  }
+
+  // Applies the moment what's typed becomes a valid color, instead of
+  // waiting for blur/Enter — same as the token color inputs in Inspect token.
+  function handleDraftChange(value: string) {
+    setDraft(value);
+    const hex = parseColorToHex(value);
+    if (hex) commit(hex);
+  }
+
+  function handleDraftFinish() {
+    if (!draft) return;
+    if (!parseColorToHex(draft)) {
+      setError('Enter a hex (#aabbcc), rgb(), or hsl() color');
+    }
+  }
 
   return (
     <div className="pinned-controls">
@@ -41,6 +73,37 @@ export function ModeSwitcher() {
           })}
         </div>
         <span className="field-hint">Sets what you're coloring below, and what gets exported.</span>
+      </div>
+
+      <div className="field-label">
+        Background color
+        <div className="color-controls">
+          <input
+            type="color"
+            className="color-native-input"
+            value={defaultBackgroundFor(mode, chrome)}
+            onChange={(e) => commit(e.target.value)}
+            title="OS color picker (also supports the eyedropper tool in some browsers)"
+            aria-label={`Pick the ${mode} mode code snippet's background color`}
+          />
+          <input
+            type="text"
+            className="color-text-input"
+            placeholder="#rrggbb, rgb(), or hsl()"
+            value={draft}
+            onChange={(e) => handleDraftChange(e.target.value)}
+            onBlur={handleDraftFinish}
+            onKeyDown={(e) => e.key === 'Enter' && handleDraftFinish()}
+            aria-label={`Type a hex, rgb(), or hsl() background color for ${mode} mode`}
+          />
+          {chrome.background && (
+            <button className="clear-color-btn" onClick={() => setChrome(mode, { background: undefined })}>
+              Reset
+            </button>
+          )}
+        </div>
+        <span className="field-hint">The code snippet's own background — separate from your OS/browser theme.</span>
+        {error && <div className="inspector-error">{error}</div>}
       </div>
     </div>
   );
