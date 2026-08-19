@@ -27,12 +27,10 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
 
   if (!selection) {
     return (
-      <div className="panel-section">
-        <div className="empty-state">
-          <CursorClickIcon className="empty-state-icon" />
-          <div className="empty-state-title">Nothing selected</div>
-          <div className="empty-state-body">Click any token in the editor to inspect its real TextMate category.</div>
-        </div>
+      <div className="empty-state">
+        <CursorClickIcon className="empty-state-icon" />
+        <div className="empty-state-title">Nothing selected</div>
+        <div className="empty-state-body">Click any token in the editor to inspect its real TextMate category.</div>
       </div>
     );
   }
@@ -41,7 +39,7 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
 
   if (!resolution.colorable) {
     return (
-      <div className="panel-section">
+      <>
         <div className="inspector-token">"{selection.text}"</div>
         <div className="empty-state empty-state-compact">
           <BanIcon className="empty-state-icon empty-state-icon-muted" size={22} />
@@ -50,7 +48,7 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
             colorable.
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -89,7 +87,7 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
   const otherRecentColors = recentColors.filter((c) => c.toLowerCase() !== currentColor?.toLowerCase());
 
   return (
-    <div className="panel-section">
+    <>
       <div className="inspector-token">"{selection.text}"</div>
       <div className="inspector-label">{resolution.label}</div>
       {!resolution.isFriendly && <div className="inspector-raw-note">No curated label — showing the raw scope.</div>}
@@ -216,6 +214,6 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
           for body text. This color may be hard to read.
         </div>
       )}
-    </div>
+    </>
   );
 }
