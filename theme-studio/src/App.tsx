@@ -3,12 +3,15 @@ import { LANGUAGES, type LanguageDef } from './data/languages';
 import type { TokenSelection } from './components/CodeEditor';
 import { LanguagePicker } from './components/LanguagePicker';
 import { PresetPicker } from './components/PresetPicker';
+import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
+import { AssignedColorsPanel } from './components/AssignedColorsPanel';
 import { ExportPanel } from './components/ExportPanel';
 import { SharePanel } from './components/SharePanel';
+import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Toast, useToast } from './components/Toast';
-import { MaximizeIcon, MinimizeIcon, SpotlightIcon, RotateCcwIcon } from './components/icons';
+import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
 
 // Monaco is the single largest dependency in this app (its core editor
@@ -21,7 +24,6 @@ function AppInner() {
   const [language, setLanguage] = useState<LanguageDef>(LANGUAGES[0]);
   const [seed, setSeed] = useState(1);
   const [selection, setSelection] = useState<TokenSelection | null>(null);
-  const [isMaximized, setIsMaximized] = useState(false);
   const [isolateColors, setIsolateColors] = useState(false);
   const [pendingLanguage, setPendingLanguage] = useState<LanguageDef | null>(null);
   const [resetPending, setResetPending] = useState(false);
@@ -94,7 +96,6 @@ function AppInner() {
     setLanguage(LANGUAGES[0]);
     setSeed(1);
     setSelection(null);
-    setIsMaximized(false);
     setIsolateColors(false);
     resetAll();
   }
@@ -165,14 +166,6 @@ function AppInner() {
             >
               <SpotlightIcon size={14} />
             </button>
-            <button
-              className="editor-toolbar-btn"
-              onClick={() => setIsMaximized((m) => !m)}
-              title={isMaximized ? 'Restore layout' : 'Maximize editor'}
-              aria-label={isMaximized ? 'Restore layout' : 'Maximize editor'}
-            >
-              {isMaximized ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
-            </button>
           </div>
           {isolateColors && (
             <div className="isolate-banner">
@@ -190,13 +183,40 @@ function AppInner() {
             <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
           </Suspense>
         </div>
-        {!isMaximized && (
-          <aside className="side-pane">
+        <aside className="side-pane">
+          <ModeSwitcher />
+
+          <CollapsibleSection
+            title="Inspect token"
+            icon={<CursorClickIcon size={14} />}
+            defaultOpen
+            badge={
+              selection && (
+                <span className="collapsible-badge" title={selection.text}>
+                  {selection.text}
+                </span>
+              )
+            }
+          >
             <InspectorPanel selection={selection} />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Assigned colors"
+            icon={<SwatchIcon size={14} />}
+            badge={totalAssignments > 0 && <span className="collapsible-count">{totalAssignments}</span>}
+          >
+            <AssignedColorsPanel />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Export theme" icon={<ExportIcon size={14} />}>
             <ExportPanel />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Share this tool" icon={<Share2Icon size={14} />}>
             <SharePanel />
-          </aside>
-        )}
+          </CollapsibleSection>
+        </aside>
       </main>
 
       {toastMessage && <Toast message={toastMessage} />}

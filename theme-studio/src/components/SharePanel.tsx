@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Share2Icon, LinkedInIcon, XIcon, RedditIcon, HackerNewsIcon } from './icons';
+import { LinkedInIcon, XIcon, RedditIcon, HackerNewsIcon } from './icons';
 
 const SHARE_TITLE = 'VS Code Theme Studio';
 const SHARE_TEXT =
@@ -43,11 +43,7 @@ export function SharePanel() {
   const url = siteUrl();
 
   return (
-    <div className="panel-section">
-      <div className="panel-section-header">
-        <Share2Icon size={15} />
-        <span>Share this tool</span>
-      </div>
+    <>
       <div className="share-actions">
         {SHARE_TARGETS.map((target) => (
           <a
@@ -64,6 +60,6 @@ export function SharePanel() {
         ))}
       </div>
       <div className="export-hint">Opens a pre-filled post on each site — nothing is sent from here.</div>
-    </div>
+    </>
   );
 }
