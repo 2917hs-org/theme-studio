@@ -1,21 +1,24 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { THEME_PRESETS, PRESET_SCOPES, type ThemePreset } from '../theme/presets';
 import { useAssignments } from '../store/AssignmentsContext';
-import { importThemeFile, ImportError, type ImportedTheme } from '../theme/importTheme';
-import { ConfirmDialog } from './ConfirmDialog';
-import { UploadIcon } from './icons';
+import { ImportThemeDialog, type ImportTab } from './ImportThemeDialog';
+import { SearchIcon, UploadIcon } from './icons';
+import type { LanguageDef } from '../data/languages';
 
 interface PresetPickerProps {
   /** Reports a human-readable success message after a theme is imported, so the caller can surface it (e.g. as a toast). */
   onImported?: (message: string) => void;
+  /** The app's current sample — passed through to the import dialog so a Marketplace theme previews against code you're already looking at. */
+  language: LanguageDef;
+  code: string;
 }
 
-export function PresetPicker({ onImported }: PresetPickerProps) {
-  const { setMode, setChrome, setColor, clearColor, assignmentsFor, chromeFor, importTheme } = useAssignments();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [pendingImport, setPendingImport] = useState<ImportedTheme | null>(null);
+export function PresetPicker({ onImported, language, code }: PresetPickerProps) {
+  const { setMode, setChrome, setColor, clearColor } = useAssignments();
+  // Which dialog tab to land on — null means the dialog is closed. Two
+  // separate buttons below drive this so "Search Marketplace" is its own
+  // visible entry point rather than hidden behind "Import theme" first.
+  const [importTab, setImportTab] = useState<ImportTab | null>(null);
 
   function applyPreset(preset: ThemePreset) {
     setMode(preset.mode);
@@ -31,44 +34,13 @@ export function PresetPicker({ onImported }: PresetPickerProps) {
     else clearColor(PRESET_SCOPES.numbers, preset.mode);
   }
 
-  function describeVariants(theme: ImportedTheme): string {
-    return theme.variants.length === 2 ? 'dark & light' : theme.variants[0].mode;
-  }
-
-  function hasExistingWorkFor(theme: ImportedTheme): boolean {
-    return theme.variants.some((v) => {
-      const chrome = chromeFor(v.mode);
-      return assignmentsFor(v.mode).size > 0 || Boolean(chrome.background) || Boolean(chrome.foreground);
-    });
-  }
-
-  function applyImport(theme: ImportedTheme) {
-    importTheme(theme);
-    onImported?.(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
-  }
-
-  async function handleFileChosen(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    // Reset so choosing the same file again still fires a change event.
-    e.target.value = '';
-    if (!file) return;
-
-    setImportError(null);
-    setIsImporting(true);
-    try {
-      const theme = await importThemeFile(file);
-      if (hasExistingWorkFor(theme)) setPendingImport(theme);
-      else applyImport(theme);
-    } catch (err) {
-      setImportError(err instanceof ImportError ? err.message : 'Could not import this file.');
-    } finally {
-      setIsImporting(false);
-    }
-  }
-
   return (
     <div className="preset-picker">
       <span className="preset-picker-label">Quick start</span>
+      {/* Presets, upload, and search are three equally-valid ways to start a
+          theme — one scrollable row instead of splitting them across
+          differently-styled controls keeps that equivalence visible instead
+          of implying presets are primary and the rest are an afterthought. */}
       <div className="preset-list">
         {THEME_PRESETS.map((preset) => (
           <button
@@ -87,45 +59,33 @@ export function PresetPicker({ onImported }: PresetPickerProps) {
             </span>
           </button>
         ))}
-      </div>
-
-      <div className="preset-import">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,.vsix,application/json"
-          className="visually-hidden"
-          onChange={handleFileChosen}
-          aria-label="Import a VS Code theme file"
-        />
         <button
           type="button"
-          className="import-theme-btn"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isImporting}
-          title="Import a VS Code theme (.json or .vsix) to tweak and export as your own"
+          className="preset-action-card"
+          onClick={() => setImportTab('upload')}
+          title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
         >
-          <UploadIcon size={13} /> {isImporting ? 'Importing…' : 'Import theme'}
+          <UploadIcon size={18} />
+          <span className="preset-action-card-label">Upload file</span>
         </button>
-        {importError && <span className="preset-import-error">{importError}</span>}
+        <button
+          type="button"
+          className="preset-action-card"
+          onClick={() => setImportTab('search')}
+          title="Search the VS Code Marketplace for a theme to tweak and export as your own"
+        >
+          <SearchIcon size={18} />
+          <span className="preset-action-card-label">Search Marketplace</span>
+        </button>
       </div>
 
-      {pendingImport && (
-        <ConfirmDialog
-          title={`Import "${pendingImport.name}"?`}
-          body={
-            <>
-              This replaces your current color assignments and background/text overrides for{' '}
-              <b>{describeVariants(pendingImport)}</b> mode. This can't be undone.
-            </>
-          }
-          confirmLabel="Import & replace"
-          danger
-          onConfirm={() => {
-            applyImport(pendingImport);
-            setPendingImport(null);
-          }}
-          onCancel={() => setPendingImport(null)}
+      {importTab && (
+        <ImportThemeDialog
+          initialTab={importTab}
+          onClose={() => setImportTab(null)}
+          onImported={(message) => onImported?.(message)}
+          language={language}
+          code={code}
         />
       )}
     </div>
