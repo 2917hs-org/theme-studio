@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { THEME_PRESETS, PRESET_SCOPES, type ThemePreset } from '../theme/presets';
 import { useAssignments } from '../store/AssignmentsContext';
-import { ImportThemeDialog, type ImportTab } from './ImportThemeDialog';
+import type { ImportTab } from './ImportThemeDialog';
 import { SearchIcon, UploadIcon } from './icons';
 import type { LanguageDef } from '../data/languages';
+
+// Pulls in vscode-textmate + jsonc-parser (grammar tokenizing for the
+// Marketplace preview, plus theme-file parsing) — neither is needed until
+// someone actually opens Upload/Search, so keep it out of the initial
+// bundle the same way CodeEditor is split out in App.tsx.
+const ImportThemeDialog = lazy(() => import('./ImportThemeDialog').then((m) => ({ default: m.ImportThemeDialog })));
 
 interface PresetPickerProps {
   /** Reports a human-readable success message after a theme is imported, so the caller can surface it (e.g. as a toast). */
@@ -80,13 +86,21 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
       </div>
 
       {importTab && (
-        <ImportThemeDialog
-          initialTab={importTab}
-          onClose={() => setImportTab(null)}
-          onImported={(message) => onImported?.(message)}
-          language={language}
-          code={code}
-        />
+        <Suspense
+          fallback={
+            <div className="confirm-overlay">
+              <div className="spinner" />
+            </div>
+          }
+        >
+          <ImportThemeDialog
+            initialTab={importTab}
+            onClose={() => setImportTab(null)}
+            onImported={(message) => onImported?.(message)}
+            language={language}
+            code={code}
+          />
+        </Suspense>
       )}
     </div>
   );
