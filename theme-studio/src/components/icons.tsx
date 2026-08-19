@@ -85,22 +85,6 @@ export function TrashIcon({ size = 14, className }: IconProps) {
   );
 }
 
-export function MaximizeIcon({ size = 14, className }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
-      <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
-    </svg>
-  );
-}
-
-export function MinimizeIcon({ size = 14, className }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
-      <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />
-    </svg>
-  );
-}
-
 export function Share2Icon({ size = 15, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
@@ -227,6 +211,17 @@ export function UploadIcon({ size = 14, className }: IconProps) {
       <path d="M12 15V4" />
       <path d="M7.5 8.5 12 4l4.5 4.5" />
       <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+export function SwatchIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="8" height="8" rx="1.6" />
+      <rect x="13" y="3" width="8" height="8" rx="1.6" />
+      <rect x="3" y="13" width="8" height="8" rx="1.6" />
+      <rect x="13" y="13" width="8" height="8" rx="1.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }

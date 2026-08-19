@@ -33,24 +33,22 @@ describe('buildVsixBlob', () => {
   })
 
   it('produces a zip Blob', async () => {
-    const assignments = { dark: new Map([['keyword', '#ff0000']]), light: new Map() }
-    const blob = await buildVsixBlob('My Theme', assignments, 'dark')
+    const assignments = new Map([['keyword', '#ff0000']])
+    const blob = await buildVsixBlob('My Theme', 'dark', assignments)
     expect(blob).toBeInstanceOf(Blob)
     expect(blob.type).toBe('application/zip')
     expect(blob.size).toBeGreaterThan(0)
   })
 
   it('escapes XML-significant characters in the theme name for the manifest', async () => {
-    const assignments = { dark: new Map(), light: new Map() }
     // Reading the zip back out isn't worth a new dependency here — this
     // guards the escaper doesn't throw and still produces a well-formed
     // (non-empty) archive for names carrying XML metacharacters.
-    const blob = await buildVsixBlob('<Theme & "Friends">', assignments, 'dark')
+    const blob = await buildVsixBlob('<Theme & "Friends">', 'dark', new Map())
     expect(blob.size).toBeGreaterThan(0)
   })
 
   it('continues without an icon when the icon fetch fails', async () => {
-    const assignments = { dark: new Map(), light: new Map() }
-    await expect(buildVsixBlob('Fails Gracefully', assignments, 'dark')).resolves.toBeInstanceOf(Blob)
+    await expect(buildVsixBlob('Fails Gracefully', 'dark', new Map())).resolves.toBeInstanceOf(Blob)
   })
 })
