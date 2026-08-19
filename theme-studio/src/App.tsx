@@ -25,9 +25,8 @@ function AppInner() {
   const [seed, setSeed] = useState(1);
   const [selection, setSelection] = useState<TokenSelection | null>(null);
   const [isolateColors, setIsolateColors] = useState(false);
-  const [pendingLanguage, setPendingLanguage] = useState<LanguageDef | null>(null);
   const [resetPending, setResetPending] = useState(false);
-  const { assignmentsFor, chromeFor, mode, themeName, clearAllColors, resetAll } = useAssignments();
+  const { assignmentsFor, chromeFor, mode, themeName, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
 
   // The whole app's chrome follows the same dark/light mode as the theme
@@ -36,8 +35,13 @@ function AppInner() {
     document.documentElement.setAttribute('data-app-theme', mode);
   }, [mode]);
 
-  // Nothing here persists anywhere — closing or reloading the tab would
-  // silently discard all color work with no way back. Warn before that.
+  // Color work autosaves to this browser (see AssignmentsContext), but only
+  // here — a different browser, device, or cleared site data still loses it
+  // with no way back, so the warning below stays as a safety net regardless.
+  useEffect(() => {
+    if (wasRestored) showToast('Restored your previous session from this browser.');
+  }, [wasRestored, showToast]);
+
   const totalAssignments = assignmentsFor('dark').size + assignmentsFor('light').size;
 
   useEffect(() => {
@@ -59,26 +63,14 @@ function AppInner() {
 
   function handleSelectLanguage(lang: LanguageDef) {
     if (lang.id === language.id) return;
-    if (totalAssignments === 0) {
-      setLanguage(lang);
-      return;
-    }
-    // Switching languages resets all color work, so hold off until the
-    // user confirms — cancelling must leave the current language and every
-    // assignment untouched.
-    setPendingLanguage(lang);
-  }
-
-  function confirmLanguageSwitch() {
-    if (!pendingLanguage) return;
-    clearAllColors();
-    setLanguage(pendingLanguage);
-    showToast(`Switched to ${pendingLanguage.label} — color assignments were reset.`);
-    setPendingLanguage(null);
-  }
-
-  function cancelLanguageSwitch() {
-    setPendingLanguage(null);
+    // Color assignments key on universal TextMate scope names (keyword,
+    // string, ...), not anything TypeScript- or Python-specific — the same
+    // "keyword" purple applies correctly in any grammar. So switching
+    // languages is exactly as safe as regenerating a new sample: keep every
+    // assignment, just drop whatever token happened to be selected in the
+    // old sample.
+    setLanguage(lang);
+    setSelection(null);
   }
 
   function hasCustomizations(): boolean {
@@ -150,7 +142,7 @@ function AppInner() {
         </div>
       </header>
 
-      <PresetPicker onImported={showToast} />
+      <PresetPicker onImported={showToast} language={language} code={code} />
 
       <LanguagePicker selected={language} onSelect={handleSelectLanguage} onRegenerate={handleRegenerate} />
 
@@ -220,23 +212,6 @@ function AppInner() {
       </main>
 
       {toastMessage && <Toast message={toastMessage} />}
-
-      {pendingLanguage && (
-        <ConfirmDialog
-          title={`Switch to ${pendingLanguage.label}?`}
-          body={
-            <>
-              This clears every color you've assigned — {totalAssignments} assignment
-              {totalAssignments === 1 ? '' : 's'} across dark and light — and starts a fresh
-              sample in {pendingLanguage.label}. This can't be undone.
-            </>
-          }
-          confirmLabel="Switch & clear colors"
-          danger
-          onConfirm={confirmLanguageSwitch}
-          onCancel={cancelLanguageSwitch}
-        />
-      )}
 
       {resetPending && (
         <ConfirmDialog
