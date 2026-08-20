@@ -10,9 +10,11 @@ import { ExportPanel } from './components/ExportPanel';
 import { SharePanel } from './components/SharePanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SiteTour } from './components/SiteTour';
 import { Toast, useToast } from './components/Toast';
-import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon } from './components/icons';
+import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
+import { hasTourBeenDismissed } from './store/tourStorage';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
@@ -26,8 +28,16 @@ function AppInner() {
   const [selection, setSelection] = useState<TokenSelection | null>(null);
   const [isolateColors, setIsolateColors] = useState(false);
   const [resetPending, setResetPending] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const { assignmentsFor, chromeFor, mode, themeName, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
+
+  // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
+  // so this only runs once per mount rather than on every render, and
+  // respects the tour's own "don't show this again" checkbox.
+  useEffect(() => {
+    if (!hasTourBeenDismissed()) setShowTour(true);
+  }, []);
 
   // The whole app's chrome follows the same dark/light mode as the theme
   // being built, rather than a second independent app-preference toggle.
@@ -136,7 +146,10 @@ function AppInner() {
               {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
             </div>
           )}
-          <button className="reset-app-btn" onClick={handleResetClick} title="Reset everything back to defaults — no page reload">
+          <button className="reset-app-btn" onClick={() => setShowTour(true)} title="Replay the guided tour">
+            <CompassIcon size={12} /> Tour
+          </button>
+          <button id="tour-reset" className="reset-app-btn" onClick={handleResetClick} title="Reset everything back to defaults — no page reload">
             <RotateCcwIcon size={12} /> Reset
           </button>
         </div>
@@ -147,7 +160,7 @@ function AppInner() {
       <LanguagePicker selected={language} onSelect={handleSelectLanguage} onRegenerate={handleRegenerate} />
 
       <main className="app-main">
-        <div className="editor-pane">
+        <div id="tour-editor" className="editor-pane">
           <div className="editor-toolbar">
             <button
               className={isolateColors ? 'editor-toolbar-btn editor-toolbar-btn-active' : 'editor-toolbar-btn'}
@@ -179,6 +192,7 @@ function AppInner() {
           <ModeSwitcher />
 
           <CollapsibleSection
+            id="tour-inspect"
             title="Inspect token"
             icon={<CursorClickIcon size={14} />}
             defaultOpen
@@ -201,7 +215,7 @@ function AppInner() {
             <AssignedColorsPanel />
           </CollapsibleSection>
 
-          <CollapsibleSection title="Export theme" icon={<ExportIcon size={14} />}>
+          <CollapsibleSection id="tour-export" title="Export theme" icon={<ExportIcon size={14} />}>
             <ExportPanel />
           </CollapsibleSection>
 
@@ -212,6 +226,8 @@ function AppInner() {
       </main>
 
       {toastMessage && <Toast message={toastMessage} />}
+
+      {showTour && <SiteTour onDone={() => setShowTour(false)} />}
 
       {resetPending && (
         <ConfirmDialog

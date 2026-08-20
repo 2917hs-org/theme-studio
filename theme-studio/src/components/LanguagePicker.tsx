@@ -25,7 +25,7 @@ export function LanguagePicker({ selected, onSelect, onRegenerate }: LanguagePic
           </button>
         ))}
       </div>
-      <button className="regenerate-btn" onClick={onRegenerate} title="Generate a new code sample — your color assignments are kept">
+      <button id="tour-regenerate" className="regenerate-btn" onClick={onRegenerate} title="Generate a new code sample — your color assignments are kept">
         <RefreshIcon /> Regenerate sample
       </button>
     </div>

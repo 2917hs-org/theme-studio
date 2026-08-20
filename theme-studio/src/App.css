@@ -309,6 +309,17 @@ button {
   transform: translateY(0) scale(0.98);
 }
 
+/* Armed, waiting for the confirming second click (see PresetPicker's
+   wouldOverwrite) — a fixed, high-contrast ring instead of tinting the
+   card itself, since the card's own background is an arbitrary preset
+   color a themed warning color can't reliably read against. Relies on the
+   armed card's inline borderColor being left unset (see PresetPicker) so
+   this rule isn't fighting an inline style for priority. */
+.preset-card-confirming {
+  border-color: var(--danger-solid-border);
+  box-shadow: 0 0 0 1px var(--danger-solid-border);
+}
+
 .preset-name {
   font-size: 12px;
   font-weight: 600;
@@ -2115,6 +2126,181 @@ button {
     border-left: none;
     border-top: 1px solid var(--border);
   }
+}
+
+/* ---------- Guided tour ---------- */
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+/* No spotlight target on this step (welcome/closing) — a plain dim backdrop
+   instead of the box-shadow trick below. */
+.tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-bg);
+  animation: confirm-overlay-in 150ms ease;
+}
+
+/* A transparent box positioned exactly over the spotlighted element, whose
+   own box-shadow is large enough to cover the rest of the viewport — the
+   standard way to punch a "hole" in an overlay without clip-path/mask
+   fighting the element's own border-radius. Doesn't intercept clicks itself
+   so the invisible .tour-click-catcher underneath still gets them. */
+.tour-spotlight {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px var(--overlay-bg);
+  pointer-events: none;
+  transition: top 180ms ease, left 180ms ease, width 180ms ease, height 180ms ease;
+}
+
+.tour-click-catcher {
+  position: fixed;
+  inset: 0;
+}
+
+.tour-popover {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 16px 18px 18px;
+  animation: confirm-dialog-in 180ms ease;
+}
+
+.tour-popover-centered {
+  position: relative;
+  margin: auto;
+  width: 100%;
+  max-width: 340px;
+}
+
+.tour-overlay:has(.tour-popover-centered) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.tour-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tour-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.tour-dot-active {
+  background: var(--accent);
+  width: 14px;
+  border-radius: 3px;
+}
+
+.tour-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tour-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.tour-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.tour-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.tour-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: 16px;
+  user-select: none;
+}
+
+.tour-checkbox-row input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tour-back-btn,
+.tour-next-btn {
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+}
+
+.tour-back-btn {
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  color: var(--text);
+}
+
+.tour-back-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--hover-border);
+}
+
+.tour-back-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tour-next-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.tour-next-btn:hover {
+  background: var(--accent-hover);
 }
 
 @media (max-width: 520px) {
