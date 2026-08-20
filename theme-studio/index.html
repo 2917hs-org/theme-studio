@@ -3,6 +3,29 @@
   <head>
     <meta charset="UTF-8" />
 
+    <!-- GitHub Pages (the current deploy target — see deploy-pages.yml)
+         can't send custom HTTP response headers at all, so this is the only
+         way to ship a Content-Security-Policy or Referrer-Policy here.
+         Two real gaps this can't close, both server-header-only by spec:
+         `frame-ancestors` is ignored entirely when CSP is delivered via
+         <meta> (no clickjacking protection), and there's no equivalent for
+         X-Content-Type-Options or Permissions-Policy. Closing those needs
+         an actual HTTP header — i.e. moving off GitHub Pages (Vercel/
+         Netlify, whose configs already sit alongside this app, would send
+         all of them) or fronting it with something like Cloudflare.
+         connect-src/img-src include the Marketplace search feature's two
+         real endpoints: the gallery query API and its per-publisher CDN.
+         script-src needs 'wasm-unsafe-eval' — vscode-oniguruma's
+         WebAssembly.instantiate() call for the TextMate tokenizer is
+         blocked without it (verified live: the editor fails to load with
+         it omitted). It permits compiling WASM only, not arbitrary
+         eval()/Function() — 'unsafe-eval' is not used here. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.gallerycdn.vsassets.io; font-src 'self'; connect-src 'self' https://marketplace.visualstudio.com https://*.gallerycdn.vsassets.io; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
     <!-- Absolute URLs below (og:url, og:image, twitter:image, canonical,
          JSON-LD "url") point at the GitHub Pages project-site origin for
          this repo (2917hs-org/theme-studio → 2917hs-org.github.io/theme-studio/),
