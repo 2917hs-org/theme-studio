@@ -85,18 +85,67 @@ export function TrashIcon({ size = 14, className }: IconProps) {
   );
 }
 
-export function MaximizeIcon({ size = 14, className }: IconProps) {
+export function Share2Icon({ size = 15, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
-      <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
+      <circle cx="18" cy="5.5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="18.5" r="2.5" />
+      <path d="M8.2 10.7 15.8 6.8M8.2 13.3l7.6 3.9" />
     </svg>
   );
 }
 
-export function MinimizeIcon({ size = 14, className }: IconProps) {
+// Share-target marks: a consistent rounded-square badge (stroke, matching
+// the rest of this file) with a letterform standing in for each platform's
+// logo — avoids reproducing actual brand marks pixel-for-pixel while
+// staying recognizable at 16px.
+const badgeLetterProps = {
+  textAnchor: 'middle' as const,
+  fontWeight: 700,
+  fontFamily: 'system-ui, -apple-system, sans-serif',
+  fill: 'currentColor',
+  stroke: 'none',
+};
+
+export function LinkedInIcon({ size = 16, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
-      <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="9.5" {...badgeLetterProps}>
+        in
+      </text>
+    </svg>
+  );
+}
+
+export function XIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <path d="M8 8l8 8M16 8l-8 8" />
+    </svg>
+  );
+}
+
+export function RedditIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="9" {...badgeLetterProps}>
+        r/
+      </text>
+    </svg>
+  );
+}
+
+export function HackerNewsIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <text x="12" y="16.3" fontSize="10.5" {...badgeLetterProps}>
+        Y
+      </text>
     </svg>
   );
 }
@@ -156,11 +205,58 @@ export function InfoIcon({ size = 14, className }: IconProps) {
   );
 }
 
+export function UploadIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M12 15V4" />
+      <path d="M7.5 8.5 12 4l4.5 4.5" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+export function SwatchIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3" y="3" width="8" height="8" rx="1.6" />
+      <rect x="13" y="3" width="8" height="8" rx="1.6" />
+      <rect x="3" y="13" width="8" height="8" rx="1.6" />
+      <rect x="13" y="13" width="8" height="8" rx="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function SearchIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M20 20l-4.35-4.35" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M5 5l14 14M19 5L5 19" />
+    </svg>
+  );
+}
+
 export function CopyIcon({ size = 13, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
       <rect x="8.5" y="8.5" width="11" height="11" rx="1.8" />
       <path d="M15.5 8.5V6.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v7.4a1.8 1.8 0 0 0 1.8 1.8h2.2" />
+    </svg>
+  );
+}
+
+export function CompassIcon({ size = 13, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M15 9l-2 6-6 2 2-6z" strokeLinejoin="round" />
     </svg>
   );
 }

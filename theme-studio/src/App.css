@@ -197,7 +197,7 @@ button {
   gap: 5px;
   background: transparent;
   color: var(--text-dim);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 5px 10px;
   font-size: 11.5px;
@@ -216,7 +216,7 @@ button {
 .mode-toggle {
   display: flex;
   background: var(--bg-inset);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: 8px;
   padding: 2px;
   gap: 2px;
@@ -244,7 +244,7 @@ button {
 .mode-toggle-btn-active {
   background: var(--bg-raised);
   color: var(--text-strong);
-  box-shadow: 0 0 0 1px var(--border-soft);
+  box-shadow: 0 0 0 1px var(--text-dim);
 }
 
 /* Same pill toggle as the header's editing-mode control, stretched to fill
@@ -309,6 +309,17 @@ button {
   transform: translateY(0) scale(0.98);
 }
 
+/* Armed, waiting for the confirming second click (see PresetPicker's
+   wouldOverwrite) — a fixed, high-contrast ring instead of tinting the
+   card itself, since the card's own background is an arbitrary preset
+   color a themed warning color can't reliably read against. Relies on the
+   armed card's inline borderColor being left unset (see PresetPicker) so
+   this rule isn't fighting an inline style for priority. */
+.preset-card-confirming {
+  border-color: var(--danger-solid-border);
+  box-shadow: 0 0 0 1px var(--danger-solid-border);
+}
+
 .preset-name {
   font-size: 12px;
   font-weight: 600;
@@ -325,6 +336,55 @@ button {
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.25);
   flex: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Same footprint as .preset-card (so it sits in the row as a peer, not an
+   afterthought) but neutral/dashed since it doesn't preview a color scheme. */
+.preset-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 108px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-soft);
+  background: var(--bg-inset);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: transform 100ms ease, box-shadow var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.preset-action-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  border-color: var(--accent);
+  border-style: solid;
+  color: var(--text-strong);
+}
+
+.preset-action-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.preset-action-card-label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* ---------- Language picker ---------- */
@@ -350,7 +410,7 @@ button {
   gap: 6px;
   background: var(--bg-raised);
   color: var(--text-dim);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: 14px;
   padding: 5px 12px 5px 9px;
   font-size: 12px;
@@ -385,7 +445,7 @@ button {
   gap: 6px;
   background: transparent;
   color: var(--accent-text);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 11px;
   font-size: 12px;
@@ -412,12 +472,21 @@ button {
   flex: 1;
   display: flex;
   min-height: 0;
+  /* editor-pane's max-width stops it (and, via the panels' combined width,
+     the whole layout) from growing indefinitely on very wide screens —
+     centering means any space left over past that cap balances evenly on
+     both sides instead of collecting as a single dead strip on one edge. */
+  justify-content: center;
 }
 
 .editor-pane {
   position: relative;
   flex: 1;
   min-width: 0;
+  /* Most code lines fall well short of this — an uncapped editor pane just
+     leaves a growing strip of blank background on wide screens instead of
+     giving that room to the panel that can actually use it. */
+  max-width: 1040px;
 }
 
 .editor-toolbar {
@@ -436,7 +505,7 @@ button {
   width: 28px;
   height: 28px;
   background: var(--overlay-bg);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   border-radius: var(--radius-sm);
   color: var(--text-dim);
   cursor: pointer;
@@ -551,7 +620,11 @@ button {
 }
 
 .side-pane {
-  width: 360px;
+  /* Scales with the viewport between the mobile breakpoint and a roomy cap
+     — wider than the old fixed 360px on typical desktop widths (reclaiming
+     space the code wasn't using), but never grows so wide it starves the
+     editor on a narrower "desktop" window near the stacking breakpoint. */
+  width: clamp(360px, 37vw, 520px);
   flex: none;
   border-left: 1px solid var(--border);
   display: flex;
@@ -560,23 +633,160 @@ button {
   background: var(--bg-panel);
 }
 
-.panel-section {
-  padding: 16px;
+/* Pinned above the collapsible sections instead of scrolling away with
+   them — both rows here are "which variant" decisions (what you're
+   coloring, what gets bundled at export) that need to be visible before
+   the user dives into Inspect token or Export theme, not discovered later
+   inside a collapsed section. */
+.pinned-controls {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: none;
+  background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.pinned-controls .field-label:last-child {
+  margin-bottom: 0;
+}
+
+.mode-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.mode-toggle-btn-active .mode-toggle-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- Collapsible side-panel sections ---------- */
+
+.collapsible-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-strong);
+  transition: background var(--transition);
+}
+
+.collapsible-header:hover {
+  background: var(--hover-bg);
+}
+
+.collapsible-section-open > .collapsible-header {
+  background: var(--hover-bg);
+}
+
+.collapsible-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: color var(--transition);
+}
+
+.collapsible-section-open > .collapsible-header .collapsible-header-title {
+  color: var(--text-strong);
+}
+
+.collapsible-header-title svg {
+  flex: none;
+  color: var(--text-dim);
+}
+
+.collapsible-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: none;
+}
+
+.collapsible-chevron {
+  flex: none;
+  color: var(--text-dim);
+  transition: transform var(--transition);
+}
+
+.collapsible-chevron-open {
+  transform: rotate(180deg);
+}
+
+.collapsible-badge {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.collapsible-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success-text);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+  padding: 2px 7px;
+}
+
+/* The grid-template-rows 0fr/1fr trick animates height without JS
+   measurement — the inner wrapper's overflow:hidden clips it to that row's
+   computed height at every point in the transition. */
+.collapsible-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms ease;
+}
+
+.collapsible-section-open .collapsible-body {
+  grid-template-rows: 1fr;
+}
+
+.collapsible-body-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 16px;
   font-size: 12px;
   line-height: 1.6;
 }
 
-.panel-section-header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 12px;
+.collapsible-section-open .collapsible-body-inner {
+  padding: 2px 16px 16px;
 }
 
 /* ---------- Empty states ---------- */
@@ -868,7 +1078,7 @@ button {
 
 .clear-color-btn {
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 9px;
@@ -1033,7 +1243,7 @@ button {
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
@@ -1113,7 +1323,7 @@ button {
 .install-btn {
   background: transparent;
   color: var(--accent-text);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
 }
 
 .install-btn:disabled {
@@ -1189,7 +1399,7 @@ button {
   height: 26px;
   padding: 0 9px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   background: transparent;
   color: var(--accent-text);
   font-size: 11.5px;
@@ -1246,6 +1456,36 @@ button {
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1.5;
+}
+
+/* ---------- Share panel ---------- */
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  /* --border/--border-soft are too pale in light mode and nearly invisible
+     against --bg-panel in dark mode — --text-dim reads as a clearly visible
+     mid-gray outline in both themes instead of nearly disappearing in one. */
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.share-btn:hover {
+  background: var(--hover-bg);
 }
 
 /* ---------- Confirm dialog ---------- */
@@ -1305,7 +1545,7 @@ button {
 
 .confirm-cancel-btn {
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--text-dim);
   color: var(--text);
 }
 
@@ -1350,6 +1590,444 @@ button {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ---------- Import theme dialog ---------- */
+
+.import-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 90;
+  animation: confirm-overlay-in 150ms ease;
+}
+
+.import-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: min(640px, 90vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  animation: confirm-dialog-in 180ms ease;
+  overflow: hidden;
+  transition: max-width var(--transition);
+}
+
+/* Wide enough for results-list + live-preview side by side (see
+   .marketplace-search-layout) — only the Search tab needs the extra room. */
+.import-dialog-wide {
+  max-width: 760px;
+}
+
+.import-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 0;
+  flex: none;
+}
+
+.import-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.import-dialog-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.import-dialog-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.import-dialog-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 14px 16px 0;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.import-dialog-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0 4px 10px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.import-dialog-tab:hover {
+  color: var(--text);
+}
+
+.import-dialog-tab-active,
+.import-dialog-tab-active:hover {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+
+.import-dialog-body {
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.import-dialog-error {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--danger-text-strong);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+/* ---------- Import: upload tab ---------- */
+
+.import-upload-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.import-upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  background: var(--bg-inset);
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.import-upload-dropzone:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.import-upload-dropzone:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.import-upload-dropzone-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.import-upload-dropzone-hint {
+  font-size: 11.5px;
+  text-align: center;
+  max-width: 280px;
+}
+
+/* ---------- Import: Marketplace search tab ---------- */
+
+.import-search-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketplace-search-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.marketplace-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.marketplace-search-input {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 10px 8px 32px;
+  font-size: 13px;
+  transition: border-color var(--transition);
+}
+
+.marketplace-search-input:focus {
+  border-color: var(--accent);
+}
+
+/* Results + live preview: stacked by default (preview below the list —
+   still always reachable, just a scroll away, since there's no room for
+   side-by-side on a narrow dialog); side by side once .import-dialog-wide
+   actually has the width to spare. */
+.marketplace-search-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 760px) {
+  .marketplace-search-layout {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .marketplace-results {
+    flex: 0 0 260px;
+  }
+
+  .marketplace-preview-pane {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.marketplace-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.marketplace-status {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.marketplace-status-error {
+  color: var(--danger-text-strong);
+}
+
+.marketplace-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.marketplace-result:hover {
+  background: var(--hover-bg);
+}
+
+/* The row currently backing the preview pane (hovered, or clicked/"pinned"
+   so it survives the mouse moving toward the preview or the Use button). */
+.marketplace-result-active {
+  background: var(--accent-soft);
+}
+
+.marketplace-result-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+}
+
+.marketplace-result-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--bg-inset);
+}
+
+.marketplace-result-icon-placeholder {
+  border: 1px solid var(--border-soft);
+}
+
+/* A tiny preview of the theme's actual palette — background color plus a
+   strip of its keyword/string/function colors — so a result can be judged
+   by how it'll actually look, not just its name and install count. Built
+   from the same download+parse path a real import uses; see the
+   PREVIEW_CONCURRENCY-limited queue in ImportThemeDialog. */
+.marketplace-result-swatch {
+  width: 28px;
+  height: 11px;
+  flex: none;
+  display: flex;
+  overflow: hidden;
+  border-radius: 3px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-inset);
+}
+
+.marketplace-swatch-dot {
+  flex: 1;
+  height: 100%;
+}
+
+.marketplace-swatch-skeleton {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--bg-inset) 25%, var(--hover-bg) 37%, var(--bg-inset) 63%);
+  background-size: 400% 100%;
+  animation: marketplace-swatch-shimmer 1.4s ease infinite;
+}
+
+@keyframes marketplace-swatch-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.marketplace-result-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.marketplace-result-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marketplace-result-publisher {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.marketplace-result-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.marketplace-result-installs {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.marketplace-use-btn {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.marketplace-use-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.marketplace-use-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.marketplace-preview-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  max-height: 420px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+
+.marketplace-preview-title {
+  flex: none;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Real syntax highlighting (actual TextMate tokenization + the theme's
+   parsed colors — see textmate/previewTokenize.ts), not a decorative
+   approximation. A second live Monaco instance can't do this: Monaco's
+   theme is a page-global singleton, so a second editor showing different
+   colors would repaint the real one behind this dialog too. */
+.theme-preview-code {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.theme-preview-line {
+  min-height: 1.6em;
+}
+
+.theme-preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 /* ---------- Crash fallback ---------- */
@@ -1401,9 +2079,39 @@ button {
     flex-wrap: wrap;
   }
 
+  /* Quick Start (7 presets + 2 action cards) and the language list each
+     wrapped into 3-4 rows at phone widths, burying the editor below a
+     screen-and-a-half of chrome before any code was visible. One
+     horizontally-scrollable row apiece keeps every option reachable
+     without that cost — a standard mobile pattern (App Store-style chips)
+     rather than a full redesign. */
+  .preset-list,
+  .language-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    /* Flex items default to min-width:auto, which refuses to shrink below
+       content size and defeats overflow-x — this is what actually makes
+       the scrolling take effect instead of just overflowing the page. */
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .preset-card,
+  .preset-action-card,
+  .lang-chip {
+    flex: none;
+  }
+
   .app-main {
     flex-direction: column;
     overflow-y: auto;
+    /* The centering on the desktop side-by-side layout is a horizontal
+       concern (balancing leftover width past editor-pane's max-width) —
+       flipped to a column, that same property would center short content
+       vertically instead, which isn't wanted here. */
+    justify-content: flex-start;
   }
 
   .editor-pane {
@@ -1418,6 +2126,181 @@ button {
     border-left: none;
     border-top: 1px solid var(--border);
   }
+}
+
+/* ---------- Guided tour ---------- */
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+/* No spotlight target on this step (welcome/closing) — a plain dim backdrop
+   instead of the box-shadow trick below. */
+.tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-bg);
+  animation: confirm-overlay-in 150ms ease;
+}
+
+/* A transparent box positioned exactly over the spotlighted element, whose
+   own box-shadow is large enough to cover the rest of the viewport — the
+   standard way to punch a "hole" in an overlay without clip-path/mask
+   fighting the element's own border-radius. Doesn't intercept clicks itself
+   so the invisible .tour-click-catcher underneath still gets them. */
+.tour-spotlight {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px var(--overlay-bg);
+  pointer-events: none;
+  transition: top 180ms ease, left 180ms ease, width 180ms ease, height 180ms ease;
+}
+
+.tour-click-catcher {
+  position: fixed;
+  inset: 0;
+}
+
+.tour-popover {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 16px 18px 18px;
+  animation: confirm-dialog-in 180ms ease;
+}
+
+.tour-popover-centered {
+  position: relative;
+  margin: auto;
+  width: 100%;
+  max-width: 340px;
+}
+
+.tour-overlay:has(.tour-popover-centered) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.tour-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tour-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.tour-dot-active {
+  background: var(--accent);
+  width: 14px;
+  border-radius: 3px;
+}
+
+.tour-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tour-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.tour-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.tour-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.tour-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: 16px;
+  user-select: none;
+}
+
+.tour-checkbox-row input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tour-back-btn,
+.tour-next-btn {
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+}
+
+.tour-back-btn {
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  color: var(--text);
+}
+
+.tour-back-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--hover-border);
+}
+
+.tour-back-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tour-next-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+.tour-next-btn:hover {
+  background: var(--accent-hover);
 }
 
 @media (max-width: 520px) {

@@ -3,12 +3,18 @@ import { LANGUAGES, type LanguageDef } from './data/languages';
 import type { TokenSelection } from './components/CodeEditor';
 import { LanguagePicker } from './components/LanguagePicker';
 import { PresetPicker } from './components/PresetPicker';
+import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
+import { AssignedColorsPanel } from './components/AssignedColorsPanel';
 import { ExportPanel } from './components/ExportPanel';
+import { SharePanel } from './components/SharePanel';
+import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SiteTour } from './components/SiteTour';
 import { Toast, useToast } from './components/Toast';
-import { MaximizeIcon, MinimizeIcon, SpotlightIcon, RotateCcwIcon } from './components/icons';
+import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
+import { hasTourBeenDismissed } from './store/tourStorage';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
@@ -20,12 +26,18 @@ function AppInner() {
   const [language, setLanguage] = useState<LanguageDef>(LANGUAGES[0]);
   const [seed, setSeed] = useState(1);
   const [selection, setSelection] = useState<TokenSelection | null>(null);
-  const [isMaximized, setIsMaximized] = useState(false);
   const [isolateColors, setIsolateColors] = useState(false);
-  const [pendingLanguage, setPendingLanguage] = useState<LanguageDef | null>(null);
   const [resetPending, setResetPending] = useState(false);
-  const { assignmentsFor, chromeFor, mode, themeName, clearAllColors, resetAll } = useAssignments();
+  const [showTour, setShowTour] = useState(false);
+  const { assignmentsFor, chromeFor, mode, themeName, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
+
+  // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
+  // so this only runs once per mount rather than on every render, and
+  // respects the tour's own "don't show this again" checkbox.
+  useEffect(() => {
+    if (!hasTourBeenDismissed()) setShowTour(true);
+  }, []);
 
   // The whole app's chrome follows the same dark/light mode as the theme
   // being built, rather than a second independent app-preference toggle.
@@ -33,8 +45,13 @@ function AppInner() {
     document.documentElement.setAttribute('data-app-theme', mode);
   }, [mode]);
 
-  // Nothing here persists anywhere — closing or reloading the tab would
-  // silently discard all color work with no way back. Warn before that.
+  // Color work autosaves to this browser (see AssignmentsContext), but only
+  // here — a different browser, device, or cleared site data still loses it
+  // with no way back, so the warning below stays as a safety net regardless.
+  useEffect(() => {
+    if (wasRestored) showToast('Restored your previous session from this browser.');
+  }, [wasRestored, showToast]);
+
   const totalAssignments = assignmentsFor('dark').size + assignmentsFor('light').size;
 
   useEffect(() => {
@@ -56,26 +73,14 @@ function AppInner() {
 
   function handleSelectLanguage(lang: LanguageDef) {
     if (lang.id === language.id) return;
-    if (totalAssignments === 0) {
-      setLanguage(lang);
-      return;
-    }
-    // Switching languages resets all color work, so hold off until the
-    // user confirms — cancelling must leave the current language and every
-    // assignment untouched.
-    setPendingLanguage(lang);
-  }
-
-  function confirmLanguageSwitch() {
-    if (!pendingLanguage) return;
-    clearAllColors();
-    setLanguage(pendingLanguage);
-    showToast(`Switched to ${pendingLanguage.label} — color assignments were reset.`);
-    setPendingLanguage(null);
-  }
-
-  function cancelLanguageSwitch() {
-    setPendingLanguage(null);
+    // Color assignments key on universal TextMate scope names (keyword,
+    // string, ...), not anything TypeScript- or Python-specific — the same
+    // "keyword" purple applies correctly in any grammar. So switching
+    // languages is exactly as safe as regenerating a new sample: keep every
+    // assignment, just drop whatever token happened to be selected in the
+    // old sample.
+    setLanguage(lang);
+    setSelection(null);
   }
 
   function hasCustomizations(): boolean {
@@ -93,7 +98,6 @@ function AppInner() {
     setLanguage(LANGUAGES[0]);
     setSeed(1);
     setSelection(null);
-    setIsMaximized(false);
     setIsolateColors(false);
     resetAll();
   }
@@ -142,18 +146,21 @@ function AppInner() {
               {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
             </div>
           )}
-          <button className="reset-app-btn" onClick={handleResetClick} title="Reset everything back to defaults — no page reload">
+          <button className="reset-app-btn" onClick={() => setShowTour(true)} title="Replay the guided tour">
+            <CompassIcon size={12} /> Tour
+          </button>
+          <button id="tour-reset" className="reset-app-btn" onClick={handleResetClick} title="Reset everything back to defaults — no page reload">
             <RotateCcwIcon size={12} /> Reset
           </button>
         </div>
       </header>
 
-      <PresetPicker />
+      <PresetPicker onImported={showToast} language={language} code={code} />
 
       <LanguagePicker selected={language} onSelect={handleSelectLanguage} onRegenerate={handleRegenerate} />
 
       <main className="app-main">
-        <div className="editor-pane">
+        <div id="tour-editor" className="editor-pane">
           <div className="editor-toolbar">
             <button
               className={isolateColors ? 'editor-toolbar-btn editor-toolbar-btn-active' : 'editor-toolbar-btn'}
@@ -163,14 +170,6 @@ function AppInner() {
               aria-pressed={isolateColors}
             >
               <SpotlightIcon size={14} />
-            </button>
-            <button
-              className="editor-toolbar-btn"
-              onClick={() => setIsMaximized((m) => !m)}
-              title={isMaximized ? 'Restore layout' : 'Maximize editor'}
-              aria-label={isMaximized ? 'Restore layout' : 'Maximize editor'}
-            >
-              {isMaximized ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
             </button>
           </div>
           {isolateColors && (
@@ -189,32 +188,46 @@ function AppInner() {
             <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
           </Suspense>
         </div>
-        {!isMaximized && (
-          <aside className="side-pane">
+        <aside className="side-pane">
+          <ModeSwitcher />
+
+          <CollapsibleSection
+            id="tour-inspect"
+            title="Inspect token"
+            icon={<CursorClickIcon size={14} />}
+            defaultOpen
+            badge={
+              selection && (
+                <span className="collapsible-badge" title={selection.text}>
+                  {selection.text}
+                </span>
+              )
+            }
+          >
             <InspectorPanel selection={selection} />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Assigned colors"
+            icon={<SwatchIcon size={14} />}
+            badge={totalAssignments > 0 && <span className="collapsible-count">{totalAssignments}</span>}
+          >
+            <AssignedColorsPanel />
+          </CollapsibleSection>
+
+          <CollapsibleSection id="tour-export" title="Export theme" icon={<ExportIcon size={14} />}>
             <ExportPanel />
-          </aside>
-        )}
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Share this tool" icon={<Share2Icon size={14} />}>
+            <SharePanel />
+          </CollapsibleSection>
+        </aside>
       </main>
 
       {toastMessage && <Toast message={toastMessage} />}
 
-      {pendingLanguage && (
-        <ConfirmDialog
-          title={`Switch to ${pendingLanguage.label}?`}
-          body={
-            <>
-              This clears every color you've assigned — {totalAssignments} assignment
-              {totalAssignments === 1 ? '' : 's'} across dark and light — and starts a fresh
-              sample in {pendingLanguage.label}. This can't be undone.
-            </>
-          }
-          confirmLabel="Switch & clear colors"
-          danger
-          onConfirm={confirmLanguageSwitch}
-          onCancel={cancelLanguageSwitch}
-        />
-      )}
+      {showTour && <SiteTour onDone={() => setShowTour(false)} />}
 
       {resetPending && (
         <ConfirmDialog

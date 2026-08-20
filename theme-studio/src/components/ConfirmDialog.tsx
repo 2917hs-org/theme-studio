@@ -10,7 +10,8 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+// Exported so other modal-like overlays (e.g. SiteTour) that need the same Tab-trap can reuse the exact selector instead of drifting out of sync with it.
+export const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 // A native `confirm()` can't be styled to match the rest of the app and
 // blocks the whole tab (including Monaco's own key handling) while open.

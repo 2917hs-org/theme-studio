@@ -43,6 +43,11 @@ export function defaultForegroundFor(mode: ThemeMode, override?: ChromeOverride)
   return mode === 'dark' ? '#d4d4d4' : '#000000';
 }
 
+export function defaultBackgroundFor(mode: ThemeMode, override?: ChromeOverride): string {
+  if (override?.background) return override.background;
+  return mode === 'dark' ? '#1e1e1e' : '#ffffff';
+}
+
 // Flat, deliberately muted stand-in for "everything you haven't colored
 // yet" — used by the editor's isolate mode so assigned scopes visibly pop
 // against a neutral background instead of blending into Monaco's own rich

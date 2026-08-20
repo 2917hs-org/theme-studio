@@ -1,11 +1,16 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ThemeMode } from '../theme/mode';
 import type { ChromeOverride } from '../theme/chrome';
+import type { ImportedTheme } from '../theme/importTheme';
+import { clearPersistedTheme, hasMeaningfulContent, loadPersistedTheme, savePersistedTheme } from './persistedTheme';
 
 export type { ChromeOverride };
 
 export const DEFAULT_THEME_NAME = 'My Theme';
 const MAX_RECENT_COLORS = 12;
+// Debounced so dragging a color picker (which fires setColor continuously)
+// doesn't write to localStorage on every frame.
+const PERSIST_DEBOUNCE_MS = 500;
 
 function emptyAssignmentsByMode(): Record<ThemeMode, Map<string, string>> {
   return { dark: new Map(), light: new Map() };
@@ -35,22 +40,36 @@ interface AssignmentsContextValue {
   clearColor: (scope: string, mode?: ThemeMode) => void;
   /** Clears every color assignment in both modes, but leaves the theme name alone. */
   clearAllColors: () => void;
+  /** Replaces the entire theme-in-progress with `theme` — name, and assignments/chrome for BOTH modes, not just whichever ones the import defines (a mode the import doesn't touch is cleared, not left with whatever was there before). Also switches the active mode to the first imported variant. */
+  importTheme: (theme: ImportedTheme) => void;
   /** Most-recently-used colors across both modes, newest first — a personal palette shortcut. */
   recentColors: string[];
-  /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors. */
+  /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors. Also clears the autosaved session. */
   resetAll: () => void;
+  /** True for exactly one mount — whether this session's initial state came from a non-empty autosaved session, so the UI can mention it once (e.g. a toast). */
+  wasRestored: boolean;
 }
 
 const AssignmentsContext = createContext<AssignmentsContextValue | null>(null);
 
 export function AssignmentsProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('light');
-  const [assignmentsByMode, setAssignmentsByMode] = useState<Record<ThemeMode, Map<string, string>>>(
-    emptyAssignmentsByMode,
+  // Read once, synchronously, before any state initializes — every useState
+  // below that seeds from `restored` runs in the same render pass, so this
+  // being set first is what makes that safe.
+  const [restored] = useState(() => loadPersistedTheme());
+  const [wasRestored] = useState(() => Boolean(restored && hasMeaningfulContent(restored)));
+
+  const [mode, setMode] = useState<ThemeMode>(restored?.mode ?? 'light');
+  const [assignmentsByMode, setAssignmentsByMode] = useState<Record<ThemeMode, Map<string, string>>>(() =>
+    restored
+      ? { dark: new Map(restored.assignments.dark ?? []), light: new Map(restored.assignments.light ?? []) }
+      : emptyAssignmentsByMode(),
   );
-  const [themeName, setThemeName] = useState(DEFAULT_THEME_NAME);
+  const [themeName, setThemeName] = useState(restored?.themeName ?? DEFAULT_THEME_NAME);
   const [recentColors, setRecentColors] = useState<string[]>([]);
-  const [chromeByMode, setChromeByMode] = useState<Record<ThemeMode, ChromeOverride>>(emptyChromeByMode);
+  const [chromeByMode, setChromeByMode] = useState<Record<ThemeMode, ChromeOverride>>(() =>
+    restored ? { dark: restored.chrome.dark ?? {}, light: restored.chrome.light ?? {} } : emptyChromeByMode(),
+  );
 
   const setColor = useCallback(
     (scope: string, color: string, targetMode?: ThemeMode) => {
@@ -92,13 +111,63 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
 
   const chromeFor = useCallback((m: ThemeMode) => chromeByMode[m], [chromeByMode]);
 
+  const importTheme = useCallback((theme: ImportedTheme) => {
+    setThemeName(theme.name);
+    // Start from empty, not from the previous state — a theme with only a
+    // dark variant (most Marketplace themes) must still clear light, not
+    // leave whatever was there from a theme imported earlier.
+    setAssignmentsByMode(() => {
+      const next = emptyAssignmentsByMode();
+      for (const variant of theme.variants) next[variant.mode] = variant.assignments;
+      return next;
+    });
+    setChromeByMode(() => {
+      const next = emptyChromeByMode();
+      for (const variant of theme.variants) next[variant.mode] = variant.chrome;
+      return next;
+    });
+    setMode(theme.variants[0].mode);
+    // The picker's "Recently used" swatches are scoped to the theme you're
+    // building — carrying them over here would show colors from whatever
+    // was just wiped out, unrelated to the theme just imported.
+    setRecentColors([]);
+  }, []);
+
   const resetAll = useCallback(() => {
     setMode('light');
     setAssignmentsByMode(emptyAssignmentsByMode());
     setChromeByMode(emptyChromeByMode());
     setThemeName(DEFAULT_THEME_NAME);
     setRecentColors([]);
+    clearPersistedTheme();
   }, []);
+
+  // Autosave — debounced, and skipped on the very first render so restoring
+  // from storage doesn't immediately turn around and rewrite it.
+  const isFirstPersistRef = useRef(true);
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isFirstPersistRef.current) {
+      isFirstPersistRef.current = false;
+      return;
+    }
+    if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
+    persistTimeoutRef.current = setTimeout(() => {
+      savePersistedTheme({
+        version: 1,
+        mode,
+        themeName,
+        assignments: {
+          dark: [...assignmentsByMode.dark.entries()],
+          light: [...assignmentsByMode.light.entries()],
+        },
+        chrome: chromeByMode,
+      });
+    }, PERSIST_DEBOUNCE_MS);
+    return () => {
+      if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
+    };
+  }, [mode, themeName, assignmentsByMode, chromeByMode]);
 
   const value = useMemo(
     () => ({
@@ -114,8 +183,10 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      importTheme,
       recentColors,
       resetAll,
+      wasRestored,
     }),
     [
       mode,
@@ -128,8 +199,10 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      importTheme,
       recentColors,
       resetAll,
+      wasRestored,
     ],
   );
 

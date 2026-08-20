@@ -22,7 +22,7 @@ let onigLibPromise: Promise<{ createOnigScanner: typeof createOnigScanner; creat
 
 function getOnigLib() {
   if (!onigLibPromise) {
-    onigLibPromise = fetchOk('/wasm/onig.wasm')
+    onigLibPromise = fetchOk(`${import.meta.env.BASE_URL}wasm/onig.wasm`)
       .then((r) => r.arrayBuffer())
       .then((buf) => loadWASM(buf))
       .then(() => ({ createOnigScanner, createOnigString }))

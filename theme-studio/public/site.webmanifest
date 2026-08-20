@@ -2,14 +2,14 @@
   "name": "VS Code Theme Studio",
   "short_name": "Theme Studio",
   "description": "Assign your own colors to real syntax categories and export a genuinely installable VS Code theme extension.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#f4f4f5",
   "theme_color": "#181818",
   "icons": [
-    { "src": "/favicon-32.png", "sizes": "32x32", "type": "image/png" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

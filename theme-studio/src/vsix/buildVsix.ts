@@ -4,12 +4,19 @@ import type { ChromeOverride } from '../theme/chrome';
 import type { ThemeMode } from '../theme/mode';
 
 // The zip's contents are assembled from three independent pieces —
-// `packageJson`, `vsixManifest`, and the per-mode theme JSON files below.
+// `packageJson`, `vsixManifest`, and one theme JSON file per variant below.
 // A future export format (e.g. a plain .json theme file with no VSIX
 // wrapper, for users who just want the color values) would slot in as a
 // sibling `buildXyzBlob` function reusing `buildVSCodeTheme` directly,
 // without needing to touch the VSIX-specific packaging here.
-export type ExportSelection = 'dark' | 'light' | 'both';
+
+export interface ThemeVariant {
+  mode: ThemeMode;
+  assignments: Map<string, string>;
+  chrome?: ChromeOverride;
+}
+
+const MODE_LABEL: Record<ThemeMode, string> = { dark: 'Dark', light: 'Light' };
 
 export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'custom-theme';
@@ -19,16 +26,11 @@ function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] ?? c);
 }
 
-function modesFor(selection: ExportSelection): ThemeMode[] {
-  if (selection === 'both') return ['dark', 'light'];
-  return [selection];
-}
-
 // Same brand mark as the favicon/header logo (see index.html), rasterized
 // to a size VS Code's Extensions view and Marketplace listing expect. It's
 // a static public asset, so fetching it here (rather than importing it as
 // a build asset) keeps this module free of bundler-specific asset syntax.
-const ICON_PATH = '/icon-192.png';
+const ICON_PATH = `${import.meta.env.BASE_URL}icon-192.png`;
 
 async function fetchIconBytes(): Promise<Uint8Array | null> {
   try {
@@ -41,39 +43,34 @@ async function fetchIconBytes(): Promise<Uint8Array | null> {
   }
 }
 
-export async function buildVsixBlob(
-  themeName: string,
-  assignmentsByMode: Record<ThemeMode, Map<string, string>>,
-  selection: ExportSelection,
-  chromeByMode?: Record<ThemeMode, ChromeOverride>,
-): Promise<Blob> {
+// One `.vsix` can, and by default now does, carry every mode the user has
+// actually customized — `contributes.themes` is already an array in VS
+// Code's own extension manifest format, so a Dark and a Light variant ship
+// side by side as one real installable theme, exactly like theme packs on
+// the Marketplace do. Callers still hand in a single variant when only one
+// mode has anything worth exporting.
+export async function buildVsixBlob(themeName: string, variants: ThemeVariant[]): Promise<Blob> {
+  if (variants.length === 0) throw new Error('buildVsixBlob requires at least one theme variant.');
   const slug = slugify(themeName);
-  const modes = modesFor(selection);
-  const suffixLabel = modes.length > 1;
-
-  const themeEntries = modes.map((mode) => ({
-    mode,
-    label: suffixLabel ? `${themeName} ${mode === 'dark' ? 'Dark' : 'Light'}` : themeName,
-    fileName: `${mode}.json`,
-    theme: buildVSCodeTheme(themeName, mode, assignmentsByMode[mode], chromeByMode?.[mode]),
-  }));
+  const multiple = variants.length > 1;
+  const labelFor = (mode: ThemeMode) => (multiple ? `${themeName} ${MODE_LABEL[mode]}` : themeName);
 
   const iconBytes = await fetchIconBytes();
 
   const packageJson = {
     name: slug,
     displayName: themeName,
-    description: 'A custom color theme generated with VS Code Theme Studio.',
+    description: `A custom color theme generated with VS Code Theme Studio${multiple ? ' (Dark + Light).' : '.'}`,
     version: '1.0.0',
     publisher: 'theme-studio-local',
     engines: { vscode: '^1.74.0' },
     categories: ['Themes'],
     ...(iconBytes ? { icon: 'icon.png' } : {}),
     contributes: {
-      themes: themeEntries.map((entry) => ({
-        label: entry.label,
-        uiTheme: entry.mode === 'dark' ? 'vs-dark' : 'vs',
-        path: `./themes/${entry.fileName}`,
+      themes: variants.map(({ mode }) => ({
+        label: labelFor(mode),
+        uiTheme: mode === 'dark' ? 'vs-dark' : 'vs',
+        path: `./themes/${mode}.json`,
       })),
     },
   };
@@ -88,7 +85,7 @@ export async function buildVsixBlob(
   <Metadata>
     <Identity Language="en-US" Id="${slug}" Version="1.0.0" Publisher="theme-studio-local"/>
     <DisplayName>${escapeXml(themeName)}</DisplayName>
-    <Description xml:space="preserve">A custom color theme generated with VS Code Theme Studio.</Description>
+    <Description xml:space="preserve">${escapeXml(packageJson.description)}</Description>
     <Tags>theme,color-theme</Tags>
     <Categories>Themes</Categories>
     <GalleryFlags>Public</GalleryFlags>
@@ -119,11 +116,12 @@ export async function buildVsixBlob(
     '[Content_Types].xml': strToU8(contentTypes),
     'extension/package.json': strToU8(JSON.stringify(packageJson, null, 2)),
   };
+  for (const { mode, assignments, chrome } of variants) {
+    const theme = buildVSCodeTheme(labelFor(mode), mode, assignments, chrome);
+    files[`extension/themes/${mode}.json`] = strToU8(JSON.stringify(theme, null, 2));
+  }
   if (iconBytes) {
     files['extension/icon.png'] = iconBytes;
-  }
-  for (const entry of themeEntries) {
-    files[`extension/themes/${entry.fileName}`] = strToU8(JSON.stringify(entry.theme, null, 2));
   }
 
   const zipped = zipSync(files, { level: 6 });
