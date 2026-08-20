@@ -1402,6 +1402,11 @@ button {
   border-color: var(--hover-border);
 }
 
+.install-copy-hint {
+  font-size: 11px;
+  color: var(--warning-text);
+}
+
 /* ---------- Toast ---------- */
 
 .toast {
