@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
+import type { ThemeMode } from '../theme/mode';
 import { buildVsixBlob, downloadBlob, slugify } from '../vsix/buildVsix';
 import { copyToClipboard, installCommandFor } from '../vsix/installLocal';
 import { CheckCircleIcon, CopyIcon, ExportIcon, LaunchIcon } from './icons';
 
+const MODES: ThemeMode[] = ['dark', 'light'];
+
 export function ExportPanel() {
-  // Exports whichever mode the pinned ModeSwitcher above has active —
-  // there's no separate export-scope choice, since you only ever design
-  // one mode at a time.
-  const { mode, assignments, chrome, themeName, setThemeName } = useAssignments();
+  const { mode, assignmentsFor, chromeFor, themeName, setThemeName } = useAssignments();
   const [justExported, setJustExported] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [installInfo, setInstallInfo] = useState<{ filename: string; command: string; copied: boolean } | null>(null);
@@ -23,8 +23,27 @@ export function ExportPanel() {
     [],
   );
 
+  // Bundles every mode with real content into one .vsix — Dark and Light
+  // are designed as a pair everywhere else in this app (the mode switcher,
+  // the assignments panel), so the export shouldn't quietly drop whichever
+  // one isn't currently active. A mode with no scope colors and no
+  // background/foreground override contributes nothing worth shipping, so
+  // it's left out rather than exported as an untouched default.
+  const modesToExport = useMemo(
+    () =>
+      MODES.filter((m) => {
+        const c = chromeFor(m);
+        return assignmentsFor(m).size > 0 || Boolean(c.background || c.foreground);
+      }),
+    [assignmentsFor, chromeFor],
+  );
+  // Falls back to the active mode alone only if neither has anything yet —
+  // canExport below already keeps the export buttons disabled in that case.
+  const exportModes = modesToExport.length > 0 ? modesToExport : [mode];
+
   async function buildCurrentVsix(): Promise<{ blob: Blob; filename: string }> {
-    const blob = await buildVsixBlob(themeName || 'My Theme', mode, assignments, chrome);
+    const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
+    const blob = await buildVsixBlob(themeName || 'My Theme', variants);
     const filename = `${slugify(themeName || 'My Theme')}.vsix`;
     return { blob, filename };
   }
@@ -70,7 +89,7 @@ export function ExportPanel() {
     setInstallInfo({ ...installInfo, copied });
   }
 
-  const canExport = assignments.size > 0;
+  const canExport = modesToExport.length > 0;
 
   return (
     <>
@@ -84,6 +103,11 @@ export function ExportPanel() {
           placeholder="e.g. Midnight Coder"
           aria-label="Theme name"
         />
+        <span className="field-hint">
+          {canExport
+            ? `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`
+            : "Color at least one token to enable export."}
+        </span>
       </div>
 
       <div className="export-actions">

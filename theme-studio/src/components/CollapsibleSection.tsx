@@ -8,6 +8,8 @@ interface CollapsibleSectionProps {
   badge?: ReactNode;
   /** Uncontrolled — each section owns its own open/closed state, so opening one never affects its siblings. */
   defaultOpen?: boolean;
+  /** Rendered on the outer <section> — lets other UI (e.g. the guided tour) target this section by DOM id without coupling to its styling classes. */
+  id?: string;
   children: ReactNode;
 }
 
@@ -19,12 +21,12 @@ interface CollapsibleSectionProps {
  * a time": only Inspect starts open, so the panel reads as one thing to look
  * at instead of four competing for attention, and the user opts into more.
  */
-export function CollapsibleSection({ title, icon, badge, defaultOpen = false, children }: CollapsibleSectionProps) {
+export function CollapsibleSection({ title, icon, badge, defaultOpen = false, id, children }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const contentId = useId();
 
   return (
-    <section className={open ? 'collapsible-section collapsible-section-open' : 'collapsible-section'}>
+    <section id={id} className={open ? 'collapsible-section collapsible-section-open' : 'collapsible-section'}>
       <button
         type="button"
         className="collapsible-header"

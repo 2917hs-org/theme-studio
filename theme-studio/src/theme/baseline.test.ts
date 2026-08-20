@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baselineColorsFor, defaultForegroundFor, isolatedForegroundFor } from './baseline'
+import { baselineColorsFor, defaultBackgroundFor, defaultForegroundFor, isolatedForegroundFor } from './baseline'
 
 describe('baselineColorsFor', () => {
   it('returns dark baseline colors unmodified with no override', () => {
@@ -40,6 +40,17 @@ describe('defaultForegroundFor', () => {
 
   it('prefers the override foreground when present', () => {
     expect(defaultForegroundFor('dark', { foreground: '#abcdef' })).toBe('#abcdef')
+  })
+})
+
+describe('defaultBackgroundFor', () => {
+  it('falls back to mode default with no override', () => {
+    expect(defaultBackgroundFor('dark')).toBe('#1e1e1e')
+    expect(defaultBackgroundFor('light')).toBe('#ffffff')
+  })
+
+  it('prefers the override background when present', () => {
+    expect(defaultBackgroundFor('dark', { background: '#123456' })).toBe('#123456')
   })
 })
 
