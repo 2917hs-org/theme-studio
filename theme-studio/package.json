@@ -3,7 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "description": "Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension — no JSON editing, ever.",
-  "keywords": ["vscode", "theme", "vsix", "textmate", "syntax-highlighting", "monaco-editor", "color-theme"],
+  "keywords": [
+    "vscode",
+    "theme",
+    "vsix",
+    "textmate",
+    "syntax-highlighting",
+    "monaco-editor",
+    "color-theme"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,6 +26,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:gh-pages": "tsc -b && vite build --base=/theme-studio/",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
@@ -26,6 +35,7 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
+    "jsonc-parser": "^3.3.1",
     "monaco-editor": "^0.56.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -28,9 +28,9 @@ npm run dev
 - **Tokenization**: real TextMate grammars (`public/grammars/*.tmLanguage.json`) are compiled with `vscode-textmate` + `vscode-oniguruma` (WASM) and wired into Monaco as a custom tokens provider (`src/textmate/`), so the editor highlights exactly the way VS Code does — not Monaco's built-in Monarch tokenizers.
 - **Color assignment**: clicking a token resolves its full scope chain and hands the deepest scope to the inspector (`src/components/InspectorPanel.tsx`); colors are kept per scope, per theme mode (dark/light) in `src/store/AssignmentsContext.tsx`.
 - **Live preview**: the assigned colors are compiled into a Monaco theme on every change (`src/theme/themeBuilder.ts`) so the editor always reflects exactly what will be exported.
-- **Export**: `src/vsix/buildVsix.ts` packages a real VS Code extension — `package.json`, `extension.vsixmanifest`, theme JSON per mode, and an icon — into a `.vsix` zip with [`fflate`](https://github.com/101arrowz/fflate), entirely client-side.
+- **Export**: `src/vsix/buildVsix.ts` packages a real VS Code extension — `package.json`, `extension.vsixmanifest`, an icon, and one theme JSON file per mode you've actually colored — into a `.vsix` zip with [`fflate`](https://github.com/101arrowz/fflate), entirely client-side. Dark and Light are bundled into a single package (two `contributes.themes` entries) whenever both have colors, instead of forcing two separate exports.
 
-Nothing is persisted (by design — see `App.tsx`'s `beforeunload` guard); everything lives in memory for the session.
+Your work autosaves to this browser's `localStorage` as you go (`src/store/persistedTheme.ts`) and is restored on your next visit here, with a toast confirming it. That's a convenience, not a backup — a different browser, a different device, or clearing site data still loses it for good, which is why `App.tsx`'s `beforeunload` guard still warns before you navigate away with uncommitted colors.
 
 ## Expanding the Oxlint configuration
 
