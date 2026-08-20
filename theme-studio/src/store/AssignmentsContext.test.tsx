@@ -61,6 +61,20 @@ describe('AssignmentsContext', () => {
     expect(result.current.themeName).toBe('Kept Name')
   })
 
+  it('replaceAssignments drops scopes not present in the new map instead of merging', () => {
+    const { result } = setup()
+    act(() => {
+      result.current.setColor('keyword', '#ff0000', 'dark')
+      result.current.setColor('type', '#00ff00', 'dark')
+      result.current.setColor('string', '#0000ff', 'light')
+    })
+    act(() => result.current.replaceAssignments('dark', new Map([['keyword', '#123456']])))
+    expect(result.current.assignmentsFor('dark')).toEqual(new Map([['keyword', '#123456']]))
+    expect(result.current.assignmentsFor('dark').has('type')).toBe(false)
+    // The other mode is untouched.
+    expect(result.current.assignmentsFor('light').get('string')).toBe('#0000ff')
+  })
+
   it('tracks recent colors newest-first, deduping case-insensitively, capped at 12', () => {
     const { result } = setup()
     act(() => {
@@ -163,6 +177,28 @@ describe('AssignmentsContext', () => {
       })
       expect(result.current.assignmentsFor('dark').get('keyword')).toBe('#111111')
       expect(result.current.assignmentsFor('light').get('keyword')).toBe('#222222')
+    })
+
+    it('uses the imported theme\'s own name by default', () => {
+      const { result } = setup()
+      act(() => {
+        result.current.importTheme({
+          name: 'Dracula Official',
+          variants: [{ mode: 'dark', chrome: {}, assignments: new Map() }],
+        })
+      })
+      expect(result.current.themeName).toBe('Dracula Official')
+    })
+
+    it('uses themeNameOverride instead of the imported theme\'s name when given one', () => {
+      const { result } = setup()
+      act(() => {
+        result.current.importTheme(
+          { name: 'Dracula Official', variants: [{ mode: 'dark', chrome: {}, assignments: new Map() }] },
+          DEFAULT_THEME_NAME,
+        )
+      })
+      expect(result.current.themeName).toBe(DEFAULT_THEME_NAME)
     })
   })
 

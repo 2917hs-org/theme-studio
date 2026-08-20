@@ -40,8 +40,10 @@ interface AssignmentsContextValue {
   clearColor: (scope: string, mode?: ThemeMode) => void;
   /** Clears every color assignment in both modes, but leaves the theme name alone. */
   clearAllColors: () => void;
-  /** Replaces the entire theme-in-progress with `theme` — name, and assignments/chrome for BOTH modes, not just whichever ones the import defines (a mode the import doesn't touch is cleared, not left with whatever was there before). Also switches the active mode to the first imported variant. */
-  importTheme: (theme: ImportedTheme) => void;
+  /** Replaces that mode's entire assignment map with `assignments` — unlike setColor/clearColor (which touch one scope), any existing scope not present in the new map is dropped, not left over. Use this for "apply a whole theme to this mode" (presets, imports), never for a single color edit. */
+  replaceAssignments: (mode: ThemeMode, assignments: Map<string, string>) => void;
+  /** Replaces the entire theme-in-progress with `theme` — name, and assignments/chrome for BOTH modes, not just whichever ones the import defines (a mode the import doesn't touch is cleared, not left with whatever was there before). Also switches the active mode to the first imported variant. Pass `themeNameOverride` to set the theme name to something other than the imported theme's own name (e.g. a Marketplace import defaults the export name back to "My Theme" instead of keeping the original theme's name). */
+  importTheme: (theme: ImportedTheme, themeNameOverride?: string) => void;
   /** Most-recently-used colors across both modes, newest first — a personal palette shortcut. */
   recentColors: string[];
   /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors. Also clears the autosaved session. */
@@ -103,6 +105,10 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     setAssignmentsByMode(emptyAssignmentsByMode());
   }, []);
 
+  const replaceAssignments = useCallback((targetMode: ThemeMode, assignments: Map<string, string>) => {
+    setAssignmentsByMode((prev) => ({ ...prev, [targetMode]: new Map(assignments) }));
+  }, []);
+
   const assignmentsFor = useCallback((m: ThemeMode) => assignmentsByMode[m], [assignmentsByMode]);
 
   const setChrome = useCallback((targetMode: ThemeMode, chrome: ChromeOverride) => {
@@ -111,8 +117,8 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
 
   const chromeFor = useCallback((m: ThemeMode) => chromeByMode[m], [chromeByMode]);
 
-  const importTheme = useCallback((theme: ImportedTheme) => {
-    setThemeName(theme.name);
+  const importTheme = useCallback((theme: ImportedTheme, themeNameOverride?: string) => {
+    setThemeName(themeNameOverride ?? theme.name);
     // Start from empty, not from the previous state — a theme with only a
     // dark variant (most Marketplace themes) must still clear light, not
     // leave whatever was there from a theme imported earlier.
@@ -183,6 +189,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      replaceAssignments,
       importTheme,
       recentColors,
       resetAll,
@@ -199,6 +206,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setColor,
       clearColor,
       clearAllColors,
+      replaceAssignments,
       importTheme,
       recentColors,
       resetAll,
