@@ -15,13 +15,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/2917hs/my-vsc.git",
+    "url": "git+https://github.com/2917hs-org/theme-studio.git",
     "directory": "theme-studio"
   },
   "bugs": {
-    "url": "https://github.com/2917hs/my-vsc/issues"
+    "url": "https://github.com/2917hs-org/theme-studio/issues"
   },
-  "homepage": "https://github.com/2917hs/my-vsc#readme",
+  "homepage": "https://github.com/2917hs-org/theme-studio#readme",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,6 +41,11 @@
     "react-dom": "^19.2.8",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
+  },
+  "overrides": {
+    "monaco-editor": {
+      "dompurify": "^3.4.14"
+    }
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",

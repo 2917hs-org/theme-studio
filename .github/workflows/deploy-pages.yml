@@ -44,6 +44,12 @@ jobs:
       - name: Typecheck
         run: npx tsc -b
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npx vite build --base="/${{ github.event.repository.name }}/"
 
