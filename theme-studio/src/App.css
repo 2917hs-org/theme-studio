@@ -309,17 +309,6 @@ button {
   transform: translateY(0) scale(0.98);
 }
 
-/* Armed, waiting for the confirming second click (see PresetPicker's
-   wouldOverwrite) — a fixed, high-contrast ring instead of tinting the
-   card itself, since the card's own background is an arbitrary preset
-   color a themed warning color can't reliably read against. Relies on the
-   armed card's inline borderColor being left unset (see PresetPicker) so
-   this rule isn't fighting an inline style for priority. */
-.preset-card-confirming {
-  border-color: var(--danger-solid-border);
-  box-shadow: 0 0 0 1px var(--danger-solid-border);
-}
-
 .preset-name {
   font-size: 12px;
   font-weight: 600;
@@ -1448,6 +1437,123 @@ button {
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ---------- Tour invite ---------- */
+/* The non-blocking first-visit nudge (see TourInvite.tsx) — a corner card,
+   not an overlay: no backdrop, no focus trap, doesn't stop you from using
+   the app while it's up. Bottom-right so it doesn't collide with Toast,
+   which owns bottom-center. */
+
+.tour-invite {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(300px, calc(100vw - 40px));
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 14px 14px 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  animation: tour-invite-in 260ms ease;
+}
+
+.tour-invite-icon {
+  color: var(--accent);
+  flex: none;
+  margin-top: 2px;
+}
+
+.tour-invite-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tour-invite-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-bottom: 3px;
+}
+
+.tour-invite-text {
+  margin: 0 0 11px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.tour-invite-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tour-invite-start-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.tour-invite-start-btn:hover {
+  background: var(--accent-hover);
+}
+
+.tour-invite-dismiss-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.tour-invite-dismiss-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.tour-invite-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+
+.tour-invite-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+@keyframes tour-invite-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

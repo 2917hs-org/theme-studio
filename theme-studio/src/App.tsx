@@ -11,10 +11,11 @@ import { SharePanel } from './components/SharePanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SiteTour } from './components/SiteTour';
+import { TourInvite } from './components/TourInvite';
 import { Toast, useToast } from './components/Toast';
 import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
-import { hasTourBeenDismissed } from './store/tourStorage';
+import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
@@ -29,15 +30,29 @@ function AppInner() {
   const [isolateColors, setIsolateColors] = useState(false);
   const [resetPending, setResetPending] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showTourInvite, setShowTourInvite] = useState(false);
   const { assignmentsFor, chromeFor, mode, themeName, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
 
   // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
   // so this only runs once per mount rather than on every render, and
-  // respects the tour's own "don't show this again" checkbox.
+  // respects the invite's own "no thanks" (same dismissal flag the full
+  // tour's checkbox uses). Offers the tour rather than opening it outright
+  // — a blocking modal on first load interrupts a tool that's largely
+  // self-explanatory before the user has done anything to be confused by.
   useEffect(() => {
-    if (!hasTourBeenDismissed()) setShowTour(true);
+    if (!hasTourBeenDismissed()) setShowTourInvite(true);
   }, []);
+
+  function startTour() {
+    setShowTourInvite(false);
+    setShowTour(true);
+  }
+
+  function dismissTourInvite() {
+    setShowTourInvite(false);
+    dismissTour();
+  }
 
   // The whole app's chrome follows the same dark/light mode as the theme
   // being built, rather than a second independent app-preference toggle.
@@ -146,7 +161,7 @@ function AppInner() {
               {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
             </div>
           )}
-          <button className="reset-app-btn" onClick={() => setShowTour(true)} title="Replay the guided tour">
+          <button className="reset-app-btn" onClick={startTour} title="Replay the guided tour">
             <CompassIcon size={12} /> Tour
           </button>
           <button id="tour-reset" className="reset-app-btn" onClick={handleResetClick} title="Reset everything back to defaults — no page reload">
@@ -226,6 +241,8 @@ function AppInner() {
       </main>
 
       {toastMessage && <Toast message={toastMessage} />}
+
+      {showTourInvite && <TourInvite onStart={startTour} onDismiss={dismissTourInvite} />}
 
       {showTour && <SiteTour onDone={() => setShowTour(false)} />}
 
