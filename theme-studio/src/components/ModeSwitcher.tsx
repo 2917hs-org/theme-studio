@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
 import { defaultBackgroundFor } from '../theme/baseline';
-import { parseColorToHex } from '../theme/colorParse';
+import { parseColorToHex, relativeLuminance } from '../theme/colorParse';
 import { MoonIcon, SunIcon } from './icons';
 
 const MODES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
@@ -31,9 +31,15 @@ export function ModeSwitcher() {
     setError(null);
   }, [mode, chrome.background]);
 
+  // A background color implies a mode — pick a dark swatch and you're
+  // clearly designing the dark variant now, whatever the toggle above
+  // still says. Auto-follows the toggle so it never fights a manual
+  // Dark/Light click; it only steps in when the picked color disagrees.
   function commit(hex: string) {
     setError(null);
-    setChrome(mode, { background: hex });
+    const impliedMode: ThemeMode = relativeLuminance(hex) < 0.5 ? 'dark' : 'light';
+    if (impliedMode !== mode) setMode(impliedMode);
+    setChrome(impliedMode, { background: hex });
   }
 
   // Applies the moment what's typed becomes a valid color, instead of
@@ -52,7 +58,7 @@ export function ModeSwitcher() {
   }
 
   return (
-    <div className="pinned-controls">
+    <div id="tour-mode-switcher" className="pinned-controls">
       <div className="field-label">
         Mode
         <div className="mode-toggle mode-toggle-full" role="radiogroup" aria-label="Mode you're coloring — also sets the live preview and what gets exported">
@@ -102,7 +108,10 @@ export function ModeSwitcher() {
             </button>
           )}
         </div>
-        <span className="field-hint">The code snippet's own background — separate from your OS/browser theme.</span>
+        <span className="field-hint">
+          The code snippet's own background — separate from your OS/browser theme. Picking a dark color switches the
+          Mode above to Dark, a light color switches it to Light.
+        </span>
         {error && <div className="inspector-error">{error}</div>}
       </div>
     </div>

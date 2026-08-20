@@ -251,3 +251,12 @@ export function CopyIcon({ size = 13, className }: IconProps) {
     </svg>
   );
 }
+
+export function CompassIcon({ size = 13, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M15 9l-2 6-6 2 2-6z" strokeLinejoin="round" />
+    </svg>
+  );
+}
