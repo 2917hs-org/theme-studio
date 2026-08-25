@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
-import { buildVsixBlob, downloadBlob, slugify } from '../vsix/buildVsix';
+import { buildVsixBlobSync, downloadBlob, slugify } from '../vsix/buildVsix';
 import { copyToClipboard, installCommandFor } from '../vsix/installLocal';
 import { CheckCircleIcon, CopyIcon, ExportIcon, LaunchIcon } from './icons';
 
@@ -41,18 +41,21 @@ export function ExportPanel() {
   // canExport below already keeps the export buttons disabled in that case.
   const exportModes = modesToExport.length > 0 ? modesToExport : [mode];
 
-  async function buildCurrentVsix(): Promise<{ blob: Blob; filename: string }> {
+  // Synchronous end to end — Safari only honors the anchor `download`
+  // attribute on a blob: URL when the click that triggers it runs with no
+  // async gap beforehand, so nothing here may sit behind an `await`.
+  function buildCurrentVsix(): { blob: Blob; filename: string } {
     const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
-    const blob = await buildVsixBlob(themeName || 'My Theme', variants);
+    const blob = buildVsixBlobSync(themeName || 'My Theme', variants);
     const filename = `${slugify(themeName || 'My Theme')}.vsix`;
     return { blob, filename };
   }
 
-  async function handleExport() {
+  function handleExport() {
     setExportError(null);
     setIsExporting(true);
     try {
-      const { blob, filename } = await buildCurrentVsix();
+      const { blob, filename } = buildCurrentVsix();
       downloadBlob(blob, filename);
       setJustExported(true);
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
@@ -70,8 +73,10 @@ export function ExportPanel() {
     setIsInstalling(true);
     setInstallInfo(null);
     try {
-      const { blob, filename } = await buildCurrentVsix();
+      const { blob, filename } = buildCurrentVsix();
       downloadBlob(blob, filename);
+      // Clipboard write happens after the click has already fired, so an
+      // await here doesn't touch Safari's gesture requirement above.
       const command = installCommandFor(filename);
       const copied = await copyToClipboard(command);
       setInstallInfo({ filename, command, copied });
