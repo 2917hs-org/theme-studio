@@ -32,14 +32,17 @@ function escapeXml(s: string): string {
 // a build asset) keeps this module free of bundler-specific asset syntax.
 const ICON_PATH = `${import.meta.env.BASE_URL}icon-192.png`;
 
-// Cached (and kicked off below at module load, well before any export
-// click) so the export handler's only await-before-`a.click()` work is on
-// an already-settled promise. Safari only honors the `download` attribute
-// within the same synchronous gesture as the click; a live network fetch
-// in between is enough for it to fall back to navigating the tab to the
-// blob: URL instead of saving it — which then fails outright, since a zip
-// isn't something Safari can render inline (WebKitBlobResource error 1).
+// Kicked off below at module load, well before any export click, and
+// mirrored into a plain variable (`iconBytesResolved`) the moment it
+// settles. Safari only honors the `download` attribute when `a.click()`
+// runs in the same synchronous task as the click event — even a single
+// `await` on an already-resolved promise is enough of a gap for it to fall
+// back to navigating the tab to the blob: URL instead of saving it, which
+// then fails outright since a zip isn't something Safari can render inline
+// (WebKitBlobResource error 1). `buildVsixBlobSync` below reads
+// `iconBytesResolved` directly so the export path never awaits anything.
 let iconBytesPromise: Promise<Uint8Array | null> | null = null;
+let iconBytesResolved: Uint8Array | null = null;
 
 function fetchIconBytes(): Promise<Uint8Array | null> {
   if (!iconBytesPromise) {
@@ -57,6 +60,9 @@ function fetchIconBytes(): Promise<Uint8Array | null> {
         return null;
       }
     })();
+    iconBytesPromise.then((bytes) => {
+      iconBytesResolved = bytes;
+    });
   }
   return iconBytesPromise;
 }
@@ -78,14 +84,12 @@ const PUBLISHER = 'vscode-theme-studio';
 const HOMEPAGE = 'https://2917hs-org.github.io/theme-studio/';
 const REPOSITORY = 'https://github.com/2917hs-org/theme-studio';
 
-export async function buildVsixBlob(themeName: string, variants: ThemeVariant[]): Promise<Blob> {
+function assembleVsix(themeName: string, variants: ThemeVariant[], iconBytes: Uint8Array | null): Blob {
   if (variants.length === 0) throw new Error('buildVsixBlob requires at least one theme variant.');
   const slug = slugify(themeName);
   const multiple = variants.length > 1;
   const labelFor = (mode: ThemeMode) => (multiple ? `${themeName} ${MODE_LABEL[mode]}` : themeName);
   const modeList = variants.map(({ mode }) => MODE_LABEL[mode]).join(' + ');
-
-  const iconBytes = await fetchIconBytes();
 
   const packageJson = {
     name: slug,
@@ -189,6 +193,20 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
 
   const zipped = zipSync(files, { level: 6 });
   return new Blob([zipped as BlobPart], { type: 'application/zip' });
+}
+
+export async function buildVsixBlob(themeName: string, variants: ThemeVariant[]): Promise<Blob> {
+  const iconBytes = await fetchIconBytes();
+  return assembleVsix(themeName, variants, iconBytes);
+}
+
+// The click-path entry point: synchronous end to end, so callers can build
+// and hand off the download without ever awaiting (see the comment on
+// `iconBytesResolved` above for why that matters on Safari). Reads whatever
+// icon bytes have settled by now, shipping without one if the fetch is
+// still in flight rather than blocking the export on it.
+export function buildVsixBlobSync(themeName: string, variants: ThemeVariant[]): Blob {
+  return assembleVsix(themeName, variants, iconBytesResolved);
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
