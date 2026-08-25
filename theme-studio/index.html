@@ -19,10 +19,17 @@
          WebAssembly.instantiate() call for the TextMate tokenizer is
          blocked without it (verified live: the editor fails to load with
          it omitted). It permits compiling WASM only, not arbitrary
-         eval()/Function() — 'unsafe-eval' is not used here. -->
+         eval()/Function() — 'unsafe-eval' is not used here.
+         connect-src needs `blob:` for the .vsix export download
+         (downloadBlob in src/vsix/buildVsix.ts): Safari, unlike Chrome/
+         Firefox, enforces CSP's connect-src against the blob: URL an
+         `<a download>` click fetches, and without it silently fails the
+         download and instead navigates the tab to the blob: URL, which it
+         can't render (zip content) — "Safari Can't Open the Page" /
+         WebKitBlobResource error 1. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.gallerycdn.vsassets.io; font-src 'self'; connect-src 'self' https://marketplace.visualstudio.com https://*.gallerycdn.vsassets.io; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.gallerycdn.vsassets.io; font-src 'self'; connect-src 'self' blob: https://marketplace.visualstudio.com https://*.gallerycdn.vsassets.io; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
