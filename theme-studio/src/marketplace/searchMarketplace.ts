@@ -30,6 +30,25 @@ export interface MarketplaceThemeResult {
   vsixUrl: string;
 }
 
+/** An icon theme picked from the Marketplace to pair with the color theme built here — a reference (publisher + extension id), never a downloaded copy. See buildVsix.ts. */
+export interface PairedIconTheme {
+  publisherName: string;
+  extensionName: string;
+  displayName: string;
+  iconUrl: string | null;
+}
+
+export interface MarketplaceIconThemeResult extends PairedIconTheme {
+  publisherDisplayName: string;
+  shortDescription: string | null;
+  installCount: number | null;
+}
+
+/** The public listing page for an extension — used as the "view on Marketplace" link, never fetched by this app. */
+export function marketplaceItemUrl(publisherName: string, extensionName: string): string {
+  return `https://marketplace.visualstudio.com/items?itemName=${publisherName}.${extensionName}`;
+}
+
 interface RawGalleryFile {
   assetType: string;
   source: string;
@@ -58,22 +77,21 @@ interface RawGalleryResponse {
   results?: Array<{ extensions?: RawGalleryExtension[] }>;
 }
 
-// Each result gets its .vsix downloaded client-side to render a color
-// preview (see ImportThemeDialog) — kept modest so a single search doesn't
-// trigger dozens of those downloads.
-export async function searchMarketplaceThemes(query: string, pageSize = 16): Promise<MarketplaceThemeResult[]> {
+function buildCriteria(tag: string, query: string): Array<{ filterType: number; value: string }> {
   const trimmed = query.trim();
   const criteria: Array<{ filterType: number; value: string }> = [
     { filterType: FILTER_TYPE_CATEGORY, value: 'Themes' },
     { filterType: FILTER_TYPE_TARGET, value: 'Microsoft.VisualStudio.Code' },
-    // The "Themes" category also covers file/product icon themes, which have
-    // no colorThemes contribution for us to import — excluding those here
-    // (rather than after the fact) keeps them out of results entirely instead
-    // of showing a theme that fails to preview and errors on "Use".
-    { filterType: FILTER_TYPE_TAG, value: 'color-theme' },
+    // The "Themes" category covers color themes and icon themes alike — the
+    // tag is what actually distinguishes them, and VS Code auto-tags every
+    // published extension by which `contributes.*` point it declares.
+    { filterType: FILTER_TYPE_TAG, value: tag },
   ];
   if (trimmed) criteria.push({ filterType: FILTER_TYPE_SEARCH_TEXT, value: trimmed });
+  return criteria;
+}
 
+async function queryGallery(criteria: Array<{ filterType: number; value: string }>, pageSize: number): Promise<RawGalleryExtension[]> {
   let res: Response;
   try {
     res = await fetch(GALLERY_QUERY_URL, {
@@ -99,7 +117,17 @@ export async function searchMarketplaceThemes(query: string, pageSize = 16): Pro
     throw new MarketplaceError('The Marketplace returned an unexpected response.');
   }
 
-  const extensions = data.results?.[0]?.extensions ?? [];
+  return data.results?.[0]?.extensions ?? [];
+}
+
+// Each result gets its .vsix downloaded client-side to render a color
+// preview (see ImportThemeDialog) — kept modest so a single search doesn't
+// trigger dozens of those downloads.
+export async function searchMarketplaceThemes(query: string, pageSize = 16): Promise<MarketplaceThemeResult[]> {
+  // Excludes icon-only themes (no colorThemes contribution for us to import)
+  // here, rather than after the fact, so results never show a theme that
+  // fails to preview and errors on "Use".
+  const extensions = await queryGallery(buildCriteria('color-theme', query), pageSize);
   const results: MarketplaceThemeResult[] = [];
 
   for (const ext of extensions) {
@@ -124,6 +152,31 @@ export async function searchMarketplaceThemes(query: string, pageSize = 16): Pro
   }
 
   return results;
+}
+
+// Unlike a color theme, an icon theme is never downloaded or parsed here —
+// there's nothing for this app to import (no colorable scopes, no
+// assignment state). A result just carries enough to reference the
+// extension later: for the paired-icon-theme card, and for the
+// `extensionPack` entry written into the exported .vsix — see buildVsix.ts.
+export async function searchMarketplaceIconThemes(query: string, pageSize = 16): Promise<MarketplaceIconThemeResult[]> {
+  const extensions = await queryGallery(buildCriteria('icon-theme', query), pageSize);
+
+  return extensions.map((ext) => {
+    const version = ext.versions?.[0];
+    const iconFile = version?.files?.find((f) => f.assetType === ICON_ASSET_TYPE);
+    const installStat = ext.statistics?.find((s) => s.statisticName === 'install');
+
+    return {
+      publisherName: ext.publisher.publisherName,
+      publisherDisplayName: ext.publisher.displayName,
+      extensionName: ext.extensionName,
+      displayName: ext.displayName,
+      shortDescription: ext.shortDescription?.trim() || null,
+      iconUrl: iconFile?.source ?? null,
+      installCount: installStat ? Math.round(installStat.value) : null,
+    };
+  });
 }
 
 /** Downloads a search result's .vsix and wraps it as a File — the same shape `importThemeFile` already accepts from the upload tab, so both paths share one parser. */

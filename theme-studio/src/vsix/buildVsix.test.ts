@@ -1,6 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildVsixBlob, slugify } from './buildVsix'
+import { buildExportSlug, buildVsixBlob, slugify } from './buildVsix'
 
 async function unzip(blob: Blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -23,6 +23,31 @@ describe('slugify', () => {
   it('falls back to "custom-theme" when nothing alphanumeric remains', () => {
     expect(slugify('!!!')).toBe('custom-theme')
     expect(slugify('')).toBe('custom-theme')
+  })
+})
+
+describe('buildExportSlug', () => {
+  it('carries the vsts product prefix with just the theme name when unpaired', () => {
+    expect(buildExportSlug('Midnight')).toBe('vsts-midnight')
+  })
+
+  it('appends the paired icon theme\'s own extension name when paired', () => {
+    expect(
+      buildExportSlug('Midnight', {
+        publisherName: 'pkief',
+        extensionName: 'material-icon-theme',
+        displayName: 'Material Icon Theme',
+        iconUrl: null,
+      }),
+    ).toBe('vsts-midnight-material-icon-theme')
+  })
+
+  it('ignores a null pairing the same as no pairing at all', () => {
+    expect(buildExportSlug('Midnight', null)).toBe('vsts-midnight')
+  })
+
+  it('does not double the vsts prefix when the theme name already starts with it (the app default)', () => {
+    expect(buildExportSlug('VSTS My Theme')).toBe('vsts-my-theme')
   })
 })
 
@@ -88,5 +113,43 @@ describe('buildVsixBlob', () => {
     const lightTheme = JSON.parse(strFromU8(files['extension/themes/light.json']))
     expect(darkTheme.tokenColors.some((t: { scope: string }) => t.scope === 'keyword')).toBe(true)
     expect(darkTheme.colors['editor.background']).not.toBe(lightTheme.colors['editor.background'])
+  })
+
+  it('omits extensionPack when no icon theme is paired', async () => {
+    const blob = await buildVsixBlob('Midnight', [{ mode: 'dark', assignments: new Map() }])
+    const files = await unzip(blob)
+    const pkg = JSON.parse(strFromU8(files['extension/package.json']))
+    expect(pkg.extensionPack).toBeUndefined()
+  })
+
+  it('references a paired icon theme as an extensionPack entry rather than bundling its assets', async () => {
+    const blob = await buildVsixBlob('Midnight', [{ mode: 'dark', assignments: new Map() }], {
+      publisherName: 'pkief',
+      extensionName: 'material-icon-theme',
+      displayName: 'Material Icon Theme',
+      iconUrl: null,
+    })
+    const files = await unzip(blob)
+    const pkg = JSON.parse(strFromU8(files['extension/package.json']))
+    expect(pkg.extensionPack).toEqual(['pkief.material-icon-theme'])
+
+    const readme = strFromU8(files['extension/README.md'])
+    expect(readme).toContain('Material Icon Theme')
+
+    const manifest = strFromU8(files['extension.vsixmanifest'])
+    expect(manifest).toContain('Microsoft.VisualStudio.Code.ExtensionPack')
+    expect(manifest).toContain('pkief.material-icon-theme')
+
+    // No asset from the icon theme's own package ever gets copied in — the
+    // export stays exactly the same set of files as an unpaired one, plus
+    // the extensionPack reference above.
+    expect(Object.keys(files).sort()).toEqual([
+      '[Content_Types].xml',
+      'extension.vsixmanifest',
+      'extension/CHANGELOG.md',
+      'extension/README.md',
+      'extension/package.json',
+      'extension/themes/dark.json',
+    ])
   })
 })

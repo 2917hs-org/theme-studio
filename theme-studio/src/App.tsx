@@ -6,6 +6,7 @@ import { PresetPicker } from './components/PresetPicker';
 import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
 import { AssignedColorsPanel } from './components/AssignedColorsPanel';
+import { IconThemePanel } from './components/IconThemePanel';
 import { ExportPanel } from './components/ExportPanel';
 import { SharePanel } from './components/SharePanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
@@ -13,7 +14,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
 import { Toast, useToast } from './components/Toast';
-import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
+import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, FolderIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 
@@ -31,7 +32,7 @@ function AppInner() {
   const [resetPending, setResetPending] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showTourInvite, setShowTourInvite] = useState(false);
-  const { assignmentsFor, chromeFor, mode, themeName, resetAll, wasRestored } = useAssignments();
+  const { assignmentsFor, chromeFor, mode, themeName, pairedIconTheme, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
 
   // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
@@ -105,7 +106,8 @@ function AppInner() {
       chromeDirty('dark') ||
       chromeDirty('light') ||
       language.id !== LANGUAGES[0].id ||
-      themeName !== DEFAULT_THEME_NAME
+      themeName !== DEFAULT_THEME_NAME ||
+      pairedIconTheme !== null
     );
   }
 
@@ -230,6 +232,14 @@ function AppInner() {
             <AssignedColorsPanel />
           </CollapsibleSection>
 
+          <CollapsibleSection
+            title="Icon theme"
+            icon={<FolderIcon size={14} />}
+            badge={pairedIconTheme && <span className="collapsible-badge" title={pairedIconTheme.displayName}>{pairedIconTheme.displayName}</span>}
+          >
+            <IconThemePanel />
+          </CollapsibleSection>
+
           <CollapsibleSection id="tour-export" title="Export theme" icon={<ExportIcon size={14} />}>
             <ExportPanel />
           </CollapsibleSection>
@@ -251,8 +261,8 @@ function AppInner() {
           title="Reset everything?"
           body={
             <>
-              This clears every color assignment, custom background/text color, and theme name, and puts the language and
-              layout back to their defaults. This can't be undone.
+              This clears every color assignment, custom background/text color, theme name, and paired icon theme, and puts
+              the language and layout back to their defaults. This can't be undone.
             </>
           }
           confirmLabel="Reset"
