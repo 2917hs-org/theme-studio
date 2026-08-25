@@ -2086,6 +2086,70 @@ button {
   cursor: default;
 }
 
+/* ---------- Icon theme pairing ---------- */
+
+.icon-theme-intro {
+  margin: 0 0 10px 0;
+}
+
+.marketplace-result-static {
+  cursor: default;
+}
+
+.marketplace-result-static:hover {
+  background: none;
+}
+
+.icon-theme-paired {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-theme-paired-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.icon-theme-paired-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.icon-theme-paired-link:hover {
+  color: var(--accent);
+}
+
+.icon-theme-paired-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-theme-cancel-btn {
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.icon-theme-cancel-btn:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .marketplace-preview-pane {
   display: flex;
   flex-direction: column;

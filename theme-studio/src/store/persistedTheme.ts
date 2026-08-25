@@ -1,5 +1,6 @@
 import type { ChromeOverride } from '../theme/chrome';
 import type { ThemeMode } from '../theme/mode';
+import type { PairedIconTheme } from '../marketplace/searchMarketplace';
 
 const STORAGE_KEY = 'theme-studio:autosave:v1';
 
@@ -9,6 +10,8 @@ export interface PersistedTheme {
   themeName: string;
   assignments: Partial<Record<ThemeMode, Array<[string, string]>>>;
   chrome: Partial<Record<ThemeMode, ChromeOverride>>;
+  /** Optional — absent in sessions saved before pairing existed, and `isValid` doesn't require it, so those restore fine with no pairing. */
+  pairedIconTheme?: PairedIconTheme | null;
 }
 
 function isValid(v: unknown): v is PersistedTheme {
