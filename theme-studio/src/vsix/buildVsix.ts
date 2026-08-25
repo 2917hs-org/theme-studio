@@ -32,16 +32,35 @@ function escapeXml(s: string): string {
 // a build asset) keeps this module free of bundler-specific asset syntax.
 const ICON_PATH = `${import.meta.env.BASE_URL}icon-192.png`;
 
-async function fetchIconBytes(): Promise<Uint8Array | null> {
-  try {
-    const res = await fetch(ICON_PATH);
-    if (!res.ok) return null;
-    return new Uint8Array(await res.arrayBuffer());
-  } catch (err) {
-    console.error('Failed to load extension icon:', err);
-    return null;
+// Cached (and kicked off below at module load, well before any export
+// click) so the export handler's only await-before-`a.click()` work is on
+// an already-settled promise. Safari only honors the `download` attribute
+// within the same synchronous gesture as the click; a live network fetch
+// in between is enough for it to fall back to navigating the tab to the
+// blob: URL instead of saving it — which then fails outright, since a zip
+// isn't something Safari can render inline (WebKitBlobResource error 1).
+let iconBytesPromise: Promise<Uint8Array | null> | null = null;
+
+function fetchIconBytes(): Promise<Uint8Array | null> {
+  if (!iconBytesPromise) {
+    // Wrapped in an async IIFE (not a bare `.then()` chain) so a
+    // synchronous throw from `fetch` itself — e.g. an invalid-URL error,
+    // which some fetch implementations raise before returning a promise —
+    // is caught too, instead of escaping this module-load-time call.
+    iconBytesPromise = (async () => {
+      try {
+        const res = await fetch(ICON_PATH);
+        if (!res.ok) return null;
+        return new Uint8Array(await res.arrayBuffer());
+      } catch (err) {
+        console.error('Failed to load extension icon:', err);
+        return null;
+      }
+    })();
   }
+  return iconBytesPromise;
 }
+void fetchIconBytes();
 
 // One `.vsix` can, and by default now does, carry every mode the user has
 // actually customized — `contributes.themes` is already an array in VS
@@ -49,11 +68,22 @@ async function fetchIconBytes(): Promise<Uint8Array | null> {
 // side by side as one real installable theme, exactly like theme packs on
 // the Marketplace do. Callers still hand in a single variant when only one
 // mode has anything worth exporting.
+
+// Shown under the theme name in VS Code's Extensions view. There's no
+// marketplace to resolve a friendlier display name for a locally-installed
+// .vsix — VS Code just prints this id verbatim — so it's worth keeping
+// clean rather than a placeholder-looking value like the old
+// "theme-studio-local".
+const PUBLISHER = 'vscode-theme-studio';
+const HOMEPAGE = 'https://2917hs-org.github.io/theme-studio/';
+const REPOSITORY = 'https://github.com/2917hs-org/theme-studio';
+
 export async function buildVsixBlob(themeName: string, variants: ThemeVariant[]): Promise<Blob> {
   if (variants.length === 0) throw new Error('buildVsixBlob requires at least one theme variant.');
   const slug = slugify(themeName);
   const multiple = variants.length > 1;
   const labelFor = (mode: ThemeMode) => (multiple ? `${themeName} ${MODE_LABEL[mode]}` : themeName);
+  const modeList = variants.map(({ mode }) => MODE_LABEL[mode]).join(' + ');
 
   const iconBytes = await fetchIconBytes();
 
@@ -62,9 +92,14 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
     displayName: themeName,
     description: `A custom color theme generated with VS Code Theme Studio${multiple ? ' (Dark + Light).' : '.'}`,
     version: '1.0.0',
-    publisher: 'theme-studio-local',
+    publisher: PUBLISHER,
     engines: { vscode: '^1.74.0' },
     categories: ['Themes'],
+    keywords: ['theme', 'color-theme'],
+    homepage: HOMEPAGE,
+    repository: { type: 'git', url: REPOSITORY },
+    bugs: { url: `${REPOSITORY}/issues` },
+    license: 'MIT',
     ...(iconBytes ? { icon: 'icon.png' } : {}),
     contributes: {
       themes: variants.map(({ mode }) => ({
@@ -75,6 +110,31 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
     },
   };
 
+  // VS Code's "Details" tab in the Extensions view renders this file
+  // verbatim (and falls back to a blank "no README" state without it);
+  // "Feature Contributions" lists `contributes.themes` above regardless,
+  // but reads bare without any surrounding context. Both get real content
+  // here instead of shipping empty.
+  const readme = `# ${themeName}
+
+A custom VS Code color theme${multiple ? ` shipping both **${modeList}** variants` : ` (${modeList})`}, built with [VS Code Theme Studio](${HOMEPAGE}).
+
+## What's included
+
+${variants.map(({ mode }) => `- **${labelFor(mode)}** — ${mode === 'dark' ? 'dark' : 'light'} UI theme (\`themes/${mode}.json\`)`).join('\n')}
+
+## Changing colors
+
+Open \`${themeName}\` in [Theme Studio](${HOMEPAGE}) to keep adjusting it, then re-export to update this extension.
+`;
+
+  const changelog = `# Changelog
+
+## 1.0.0
+
+Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
+`;
+
   const iconAsset = iconBytes
     ? '\n    <Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="extension/icon.png" Addressable="true" />'
     : '';
@@ -83,7 +143,7 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
   const vsixManifest = `<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Language="en-US" Id="${slug}" Version="1.0.0" Publisher="theme-studio-local"/>
+    <Identity Language="en-US" Id="${slug}" Version="1.0.0" Publisher="${PUBLISHER}"/>
     <DisplayName>${escapeXml(themeName)}</DisplayName>
     <Description xml:space="preserve">${escapeXml(packageJson.description)}</Description>
     <Tags>theme,color-theme</Tags>
@@ -108,6 +168,7 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
   <Default Extension="vsixmanifest" ContentType="text/xml" />
   <Default Extension="json" ContentType="application/json" />
   <Default Extension="png" ContentType="image/png" />
+  <Default Extension="md" ContentType="text/markdown" />
 </Types>
 `;
 
@@ -115,6 +176,8 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
     'extension.vsixmanifest': strToU8(vsixManifest),
     '[Content_Types].xml': strToU8(contentTypes),
     'extension/package.json': strToU8(JSON.stringify(packageJson, null, 2)),
+    'extension/README.md': strToU8(readme),
+    'extension/CHANGELOG.md': strToU8(changelog),
   };
   for (const { mode, assignments, chrome } of variants) {
     const theme = buildVSCodeTheme(labelFor(mode), mode, assignments, chrome);
