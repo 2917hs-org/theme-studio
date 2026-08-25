@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ThemeMode } from '../theme/mode';
 import type { ChromeOverride } from '../theme/chrome';
 import type { ImportedTheme } from '../theme/importTheme';
+import type { PairedIconTheme } from '../marketplace/searchMarketplace';
 import { clearPersistedTheme, hasMeaningfulContent, loadPersistedTheme, savePersistedTheme } from './persistedTheme';
 
 export type { ChromeOverride };
@@ -46,7 +47,10 @@ interface AssignmentsContextValue {
   importTheme: (theme: ImportedTheme, themeNameOverride?: string) => void;
   /** Most-recently-used colors across both modes, newest first — a personal palette shortcut. */
   recentColors: string[];
-  /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors. Also clears the autosaved session. */
+  /** The Marketplace icon theme paired with this color theme, if any — a reference only (publisher + extension id), never downloaded. Independent of color assignments: importing or clearing colors doesn't touch it. */
+  pairedIconTheme: PairedIconTheme | null;
+  setPairedIconTheme: (theme: PairedIconTheme | null) => void;
+  /** Everything this context owns, back to first-load defaults: mode, assignments, chrome overrides, theme name, recent colors, paired icon theme. Also clears the autosaved session. */
   resetAll: () => void;
   /** True for exactly one mount — whether this session's initial state came from a non-empty autosaved session, so the UI can mention it once (e.g. a toast). */
   wasRestored: boolean;
@@ -72,6 +76,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   const [chromeByMode, setChromeByMode] = useState<Record<ThemeMode, ChromeOverride>>(() =>
     restored ? { dark: restored.chrome.dark ?? {}, light: restored.chrome.light ?? {} } : emptyChromeByMode(),
   );
+  const [pairedIconTheme, setPairedIconTheme] = useState<PairedIconTheme | null>(restored?.pairedIconTheme ?? null);
 
   const setColor = useCallback(
     (scope: string, color: string, targetMode?: ThemeMode) => {
@@ -145,6 +150,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     setChromeByMode(emptyChromeByMode());
     setThemeName(DEFAULT_THEME_NAME);
     setRecentColors([]);
+    setPairedIconTheme(null);
     clearPersistedTheme();
   }, []);
 
@@ -168,12 +174,13 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
           light: [...assignmentsByMode.light.entries()],
         },
         chrome: chromeByMode,
+        pairedIconTheme,
       });
     }, PERSIST_DEBOUNCE_MS);
     return () => {
       if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
     };
-  }, [mode, themeName, assignmentsByMode, chromeByMode]);
+  }, [mode, themeName, assignmentsByMode, chromeByMode, pairedIconTheme]);
 
   const value = useMemo(
     () => ({
@@ -192,6 +199,8 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       replaceAssignments,
       importTheme,
       recentColors,
+      pairedIconTheme,
+      setPairedIconTheme,
       resetAll,
       wasRestored,
     }),
@@ -209,6 +218,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       replaceAssignments,
       importTheme,
       recentColors,
+      pairedIconTheme,
       resetAll,
       wasRestored,
     ],
