@@ -2,6 +2,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { buildVSCodeTheme } from '../theme/themeBuilder';
 import type { ChromeOverride } from '../theme/chrome';
 import type { ThemeMode } from '../theme/mode';
+import type { PairedIconTheme } from '../marketplace/searchMarketplace';
 
 // The zip's contents are assembled from three independent pieces —
 // `packageJson`, `vsixManifest`, and one theme JSON file per variant below.
@@ -22,6 +23,21 @@ export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'custom-theme';
 }
 
+// The technical identifier (package name, manifest Id, download filename) —
+// distinct from `displayName`, which stays exactly what the user typed.
+// Always carries the `vsts` product prefix, and folds in the paired icon
+// theme's own extension name (already a valid slug, so reused as-is rather
+// than re-derived from its display name) when one is paired. The default
+// theme name (DEFAULT_THEME_NAME) already starts with "VSTS" itself — this
+// checks for that rather than blindly prepending, so the common case stays
+// `vsts-my-theme` instead of doubling up as `vsts-vsts-my-theme`.
+export function buildExportSlug(themeName: string, pairedIconTheme?: PairedIconTheme | null): string {
+  const themeSlug = slugify(themeName);
+  const parts = themeSlug === 'vsts' || themeSlug.startsWith('vsts-') ? [themeSlug] : ['vsts', themeSlug];
+  if (pairedIconTheme) parts.push(pairedIconTheme.extensionName);
+  return parts.join('-');
+}
+
 function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] ?? c);
 }
@@ -32,14 +48,17 @@ function escapeXml(s: string): string {
 // a build asset) keeps this module free of bundler-specific asset syntax.
 const ICON_PATH = `${import.meta.env.BASE_URL}icon-192.png`;
 
-// Cached (and kicked off below at module load, well before any export
-// click) so the export handler's only await-before-`a.click()` work is on
-// an already-settled promise. Safari only honors the `download` attribute
-// within the same synchronous gesture as the click; a live network fetch
-// in between is enough for it to fall back to navigating the tab to the
-// blob: URL instead of saving it — which then fails outright, since a zip
-// isn't something Safari can render inline (WebKitBlobResource error 1).
+// Kicked off below at module load, well before any export click, and
+// mirrored into a plain variable (`iconBytesResolved`) the moment it
+// settles. Safari only honors the `download` attribute when `a.click()`
+// runs in the same synchronous task as the click event — even a single
+// `await` on an already-resolved promise is enough of a gap for it to fall
+// back to navigating the tab to the blob: URL instead of saving it, which
+// then fails outright since a zip isn't something Safari can render inline
+// (WebKitBlobResource error 1). `buildVsixBlobSync` below reads
+// `iconBytesResolved` directly so the export path never awaits anything.
 let iconBytesPromise: Promise<Uint8Array | null> | null = null;
+let iconBytesResolved: Uint8Array | null = null;
 
 function fetchIconBytes(): Promise<Uint8Array | null> {
   if (!iconBytesPromise) {
@@ -57,6 +76,9 @@ function fetchIconBytes(): Promise<Uint8Array | null> {
         return null;
       }
     })();
+    iconBytesPromise.then((bytes) => {
+      iconBytesResolved = bytes;
+    });
   }
   return iconBytesPromise;
 }
@@ -78,14 +100,18 @@ const PUBLISHER = 'vscode-theme-studio';
 const HOMEPAGE = 'https://2917hs-org.github.io/theme-studio/';
 const REPOSITORY = 'https://github.com/2917hs-org/theme-studio';
 
-export async function buildVsixBlob(themeName: string, variants: ThemeVariant[]): Promise<Blob> {
+function assembleVsix(themeName: string, variants: ThemeVariant[], iconBytes: Uint8Array | null, pairedIconTheme?: PairedIconTheme | null): Blob {
   if (variants.length === 0) throw new Error('buildVsixBlob requires at least one theme variant.');
-  const slug = slugify(themeName);
+  const slug = buildExportSlug(themeName, pairedIconTheme);
   const multiple = variants.length > 1;
   const labelFor = (mode: ThemeMode) => (multiple ? `${themeName} ${MODE_LABEL[mode]}` : themeName);
   const modeList = variants.map(({ mode }) => MODE_LABEL[mode]).join(' + ');
 
-  const iconBytes = await fetchIconBytes();
+  // A pairing is a reference to someone else's already-published extension,
+  // never a copy of its assets — `extensionPack` is VS Code's own mechanism
+  // for "installing this also installs that", independently versioned and
+  // attributed. See searchMarketplace.ts's PairedIconTheme doc comment.
+  const iconThemeId = pairedIconTheme ? `${pairedIconTheme.publisherName}.${pairedIconTheme.extensionName}` : null;
 
   const packageJson = {
     name: slug,
@@ -101,6 +127,7 @@ export async function buildVsixBlob(themeName: string, variants: ThemeVariant[])
     bugs: { url: `${REPOSITORY}/issues` },
     license: 'MIT',
     ...(iconBytes ? { icon: 'icon.png' } : {}),
+    ...(iconThemeId ? { extensionPack: [iconThemeId] } : {}),
     contributes: {
       themes: variants.map(({ mode }) => ({
         label: labelFor(mode),
@@ -122,7 +149,7 @@ A custom VS Code color theme${multiple ? ` shipping both **${modeList}** variant
 ## What's included
 
 ${variants.map(({ mode }) => `- **${labelFor(mode)}** — ${mode === 'dark' ? 'dark' : 'light'} UI theme (\`themes/${mode}.json\`)`).join('\n')}
-
+${pairedIconTheme ? `\n## Pairs with\n\nInstalling this extension also installs [${pairedIconTheme.displayName}](https://marketplace.visualstudio.com/items?itemName=${iconThemeId}) — the icon theme it was previewed with in Theme Studio.\n` : ''}
 ## Changing colors
 
 Open \`${themeName}\` in [Theme Studio](${HOMEPAGE}) to keep adjusting it, then re-export to update this extension.
@@ -139,6 +166,9 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
     ? '\n    <Asset Type="Microsoft.VisualStudio.Services.Icons.Default" Path="extension/icon.png" Addressable="true" />'
     : '';
   const iconMetadata = iconBytes ? '\n    <Icon>extension/icon.png</Icon>' : '';
+  const extensionPackProperty = iconThemeId
+    ? `\n      <Property Id="Microsoft.VisualStudio.Code.ExtensionPack" Value="${escapeXml(iconThemeId)}" />`
+    : '';
 
   const vsixManifest = `<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
@@ -150,7 +180,7 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
     <Categories>Themes</Categories>
     <GalleryFlags>Public</GalleryFlags>
     <Properties>
-      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.74.0" />
+      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.74.0" />${extensionPackProperty}
     </Properties>${iconMetadata}
   </Metadata>
   <Installation>
@@ -189,6 +219,20 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
 
   const zipped = zipSync(files, { level: 6 });
   return new Blob([zipped as BlobPart], { type: 'application/zip' });
+}
+
+export async function buildVsixBlob(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): Promise<Blob> {
+  const iconBytes = await fetchIconBytes();
+  return assembleVsix(themeName, variants, iconBytes, pairedIconTheme);
+}
+
+// The click-path entry point: synchronous end to end, so callers can build
+// and hand off the download without ever awaiting (see the comment on
+// `iconBytesResolved` above for why that matters on Safari). Reads whatever
+// icon bytes have settled by now, shipping without one if the fetch is
+// still in flight rather than blocking the export on it.
+export function buildVsixBlobSync(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): Blob {
+  return assembleVsix(themeName, variants, iconBytesResolved, pairedIconTheme);
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
-import { buildVsixBlob, downloadBlob, slugify } from '../vsix/buildVsix';
+import { buildExportSlug, buildVsixBlobSync, downloadBlob } from '../vsix/buildVsix';
 import { copyToClipboard, installCommandFor } from '../vsix/installLocal';
 import { CheckCircleIcon, CopyIcon, ExportIcon, LaunchIcon } from './icons';
 
 const MODES: ThemeMode[] = ['dark', 'light'];
 
 export function ExportPanel() {
-  const { mode, assignmentsFor, chromeFor, themeName, setThemeName } = useAssignments();
+  const { mode, assignmentsFor, chromeFor, themeName, setThemeName, pairedIconTheme } = useAssignments();
   const [justExported, setJustExported] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [installInfo, setInstallInfo] = useState<{ filename: string; command: string; copied: boolean } | null>(null);
@@ -41,18 +41,21 @@ export function ExportPanel() {
   // canExport below already keeps the export buttons disabled in that case.
   const exportModes = modesToExport.length > 0 ? modesToExport : [mode];
 
-  async function buildCurrentVsix(): Promise<{ blob: Blob; filename: string }> {
+  // Synchronous end to end — Safari only honors the anchor `download`
+  // attribute on a blob: URL when the click that triggers it runs with no
+  // async gap beforehand, so nothing here may sit behind an `await`.
+  function buildCurrentVsix(): { blob: Blob; filename: string } {
     const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
-    const blob = await buildVsixBlob(themeName || 'My Theme', variants);
-    const filename = `${slugify(themeName || 'My Theme')}.vsix`;
+    const blob = buildVsixBlobSync(themeName || 'My Theme', variants, pairedIconTheme);
+    const filename = `${buildExportSlug(themeName || 'My Theme', pairedIconTheme)}.vsix`;
     return { blob, filename };
   }
 
-  async function handleExport() {
+  function handleExport() {
     setExportError(null);
     setIsExporting(true);
     try {
-      const { blob, filename } = await buildCurrentVsix();
+      const { blob, filename } = buildCurrentVsix();
       downloadBlob(blob, filename);
       setJustExported(true);
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
@@ -70,8 +73,10 @@ export function ExportPanel() {
     setIsInstalling(true);
     setInstallInfo(null);
     try {
-      const { blob, filename } = await buildCurrentVsix();
+      const { blob, filename } = buildCurrentVsix();
       downloadBlob(blob, filename);
+      // Clipboard write happens after the click has already fired, so an
+      // await here doesn't touch Safari's gesture requirement above.
       const command = installCommandFor(filename);
       const copied = await copyToClipboard(command);
       setInstallInfo({ filename, command, copied });
@@ -108,6 +113,11 @@ export function ExportPanel() {
             ? `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`
             : "Color at least one token to enable export."}
         </span>
+        {pairedIconTheme ? (
+          <span className="field-hint">Also installs <b>{pairedIconTheme.displayName}</b> as a recommended icon theme.</span>
+        ) : (
+          <span className="field-hint">Tip: pair an icon theme in the section above so file icons match too.</span>
+        )}
       </div>
 
       <div className="export-actions">

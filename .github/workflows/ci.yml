@@ -6,32 +6,28 @@ on:
   pull_request:
     branches: [main, release]
 
+permissions:
+  contents: read
+
+# A new push to the same branch/PR supersedes the previous run, so we don't
+# burn minutes finishing a check that's already stale.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: theme-studio
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/verify
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: theme-studio/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Typecheck
-        run: npx tsc -b
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
+          working-directory: theme-studio
 
       - name: Build
         run: npm run build
