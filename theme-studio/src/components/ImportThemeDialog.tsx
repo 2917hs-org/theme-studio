@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
-import { useAssignments } from '../store/AssignmentsContext';
+import { DEFAULT_THEME_NAME, useAssignments } from '../store/AssignmentsContext';
 import { importThemeFile, ImportError, type ImportedTheme } from '../theme/importTheme';
 import { PRESET_SCOPES } from '../theme/presets';
 import type { LanguageDef } from '../data/languages';
@@ -50,8 +50,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Shared across both tabs — an import that would overwrite existing color
-  // work waits for confirmation regardless of where it came from.
-  const [pendingImport, setPendingImport] = useState<ImportedTheme | null>(null);
+  // work waits for confirmation regardless of where it came from. `source`
+  // travels with it so the confirm step still knows which tab it came from.
+  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; source: ImportTab } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFile, setIsImportingFile] = useState(false);
@@ -163,15 +164,20 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     });
   }
 
-  function finishImport(theme: ImportedTheme) {
-    importTheme(theme);
+  function finishImport(theme: ImportedTheme, source: ImportTab) {
+    // A Marketplace theme is a starting point you're forking, not still
+    // "Dracula Official" once you start tweaking it — the export name
+    // resets to the default instead of carrying the original theme's name
+    // forward. An uploaded file keeps its own name, since that's usually
+    // someone iterating on their own in-progress theme.
+    importTheme(theme, source === 'search' ? DEFAULT_THEME_NAME : undefined);
     onImported(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
     onClose();
   }
 
-  function handleParsedTheme(theme: ImportedTheme) {
-    if (hasExistingWork()) setPendingImport(theme);
-    else finishImport(theme);
+  function handleParsedTheme(theme: ImportedTheme, source: ImportTab) {
+    if (hasExistingWork()) setPendingImport({ theme, source });
+    else finishImport(theme, source);
   }
 
   async function handleFileChosen(e: ChangeEvent<HTMLInputElement>) {
@@ -182,7 +188,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     setIsImportingFile(true);
     try {
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme);
+      handleParsedTheme(theme, 'upload');
     } catch (err) {
       setUploadError(err instanceof ImportError ? err.message : 'Could not import this file.');
     } finally {
@@ -236,7 +242,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     try {
       const file = await fetchMarketplaceVsix(result);
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme);
+      handleParsedTheme(theme, 'search');
     } catch (err) {
       setSearchError(
         err instanceof MarketplaceError || err instanceof ImportError ? err.message : `Could not import "${result.displayName}".`,
@@ -437,20 +443,20 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
 
       {pendingImport && (
         <ConfirmDialog
-          title={`Import "${pendingImport.name}"?`}
+          title={`Import "${pendingImport.theme.name}"?`}
           body={
             <>
               This replaces all of your current color assignments and background/text overrides — for{' '}
-              <b>both dark and light</b>, even if "{pendingImport.name}" only defines {describeVariants(pendingImport)}.
-              This can't be undone.
+              <b>both dark and light</b>, even if "{pendingImport.theme.name}" only defines{' '}
+              {describeVariants(pendingImport.theme)}. This can't be undone.
             </>
           }
           confirmLabel="Import & replace"
           danger
           onConfirm={() => {
-            const theme = pendingImport;
+            const { theme, source } = pendingImport;
             setPendingImport(null);
-            finishImport(theme);
+            finishImport(theme, source);
           }}
           onCancel={() => setPendingImport(null)}
         />

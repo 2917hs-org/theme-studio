@@ -56,6 +56,15 @@ async function loadRawGrammar(scopeName: string): Promise<IRawGrammar | undefine
       .then((content) => parseRawGrammar(content, path))
       .catch((err) => {
         rawGrammarCache.delete(scopeName);
+        // vscode-textmate's Registry caches a failed loadGrammar() call
+        // permanently per scope — it never calls this loader again for the
+        // same scope, even after the underlying problem (a network blip)
+        // is gone. Dropping the whole Registry singleton on any grammar
+        // failure, the same way getOnigLib already does for a WASM load
+        // failure, is what makes the editor's "Retry" button (and simply
+        // switching languages away and back) actually work again instead
+        // of permanently wedging that language for the rest of the session.
+        registrySingleton = null;
         throw err;
       });
     rawGrammarCache.set(scopeName, promise);
