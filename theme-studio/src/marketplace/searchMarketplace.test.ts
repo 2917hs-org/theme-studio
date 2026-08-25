@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MarketplaceError, fetchMarketplaceVsix, searchMarketplaceThemes } from './searchMarketplace'
+import { MarketplaceError, fetchMarketplaceVsix, marketplaceItemUrl, searchMarketplaceIconThemes, searchMarketplaceThemes } from './searchMarketplace'
 
 function galleryResponse(extensions: unknown[]) {
   return { results: [{ extensions }] }
@@ -117,6 +117,80 @@ describe('searchMarketplaceThemes', () => {
       })),
     )
     await expect(searchMarketplaceThemes('x')).rejects.toThrow(MarketplaceError)
+  })
+})
+
+describe('searchMarketplaceIconThemes', () => {
+  const SAMPLE_ICON_THEME = {
+    publisher: { publisherName: 'pkief', displayName: 'Philipp Kief' },
+    extensionName: 'material-icon-theme',
+    displayName: 'Material Icon Theme',
+    shortDescription: 'Material Design Icons.',
+    versions: [
+      {
+        version: '5.0.0',
+        files: [{ assetType: 'Microsoft.VisualStudio.Services.Icons.Default', source: 'https://cdn.example/icon.png' }],
+      },
+    ],
+    statistics: [{ statisticName: 'install', value: 9876543 }],
+  }
+
+  it('parses a well-formed response into results, with no vsixUrl to download', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => galleryResponse([SAMPLE_ICON_THEME]) })),
+    )
+    const results = await searchMarketplaceIconThemes('material')
+    expect(results).toEqual([
+      {
+        publisherName: 'pkief',
+        publisherDisplayName: 'Philipp Kief',
+        extensionName: 'material-icon-theme',
+        displayName: 'Material Icon Theme',
+        shortDescription: 'Material Design Icons.',
+        iconUrl: 'https://cdn.example/icon.png',
+        installCount: 9876543,
+      },
+    ])
+    expect((results[0] as { vsixUrl?: string }).vsixUrl).toBeUndefined()
+  })
+
+  it('queries the icon-theme tag, not color-theme', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => ({
+      ok: true,
+      json: async () => galleryResponse([SAMPLE_ICON_THEME]),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await searchMarketplaceIconThemes('material')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(body.filters[0].criteria).toContainEqual({ filterType: 1, value: 'icon-theme' })
+    expect(body.filters[0].criteria).not.toContainEqual({ filterType: 1, value: 'color-theme' })
+  })
+
+  it('does not require a downloadable VSIX asset, unlike color-theme search', async () => {
+    const noVsix = { ...SAMPLE_ICON_THEME, versions: [{ version: '1.0.0', files: [] }] }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => galleryResponse([noVsix]) })),
+    )
+    const results = await searchMarketplaceIconThemes('material')
+    expect(results).toHaveLength(1)
+  })
+
+  it('throws MarketplaceError on a non-OK response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 503 })),
+    )
+    await expect(searchMarketplaceIconThemes('x')).rejects.toThrow(MarketplaceError)
+  })
+})
+
+describe('marketplaceItemUrl', () => {
+  it('builds the public Marketplace listing URL for a publisher + extension id', () => {
+    expect(marketplaceItemUrl('pkief', 'material-icon-theme')).toBe(
+      'https://marketplace.visualstudio.com/items?itemName=pkief.material-icon-theme',
+    )
   })
 })
 

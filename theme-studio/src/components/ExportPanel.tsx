@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
-import { buildVsixBlobSync, downloadBlob, slugify } from '../vsix/buildVsix';
+import { buildExportSlug, buildVsixBlobSync, downloadBlob } from '../vsix/buildVsix';
 import { copyToClipboard, installCommandFor } from '../vsix/installLocal';
 import { CheckCircleIcon, CopyIcon, ExportIcon, LaunchIcon } from './icons';
 
 const MODES: ThemeMode[] = ['dark', 'light'];
 
 export function ExportPanel() {
-  const { mode, assignmentsFor, chromeFor, themeName, setThemeName } = useAssignments();
+  const { mode, assignmentsFor, chromeFor, themeName, setThemeName, pairedIconTheme } = useAssignments();
   const [justExported, setJustExported] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [installInfo, setInstallInfo] = useState<{ filename: string; command: string; copied: boolean } | null>(null);
@@ -46,8 +46,8 @@ export function ExportPanel() {
   // async gap beforehand, so nothing here may sit behind an `await`.
   function buildCurrentVsix(): { blob: Blob; filename: string } {
     const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
-    const blob = buildVsixBlobSync(themeName || 'My Theme', variants);
-    const filename = `${slugify(themeName || 'My Theme')}.vsix`;
+    const blob = buildVsixBlobSync(themeName || 'My Theme', variants, pairedIconTheme);
+    const filename = `${buildExportSlug(themeName || 'My Theme', pairedIconTheme)}.vsix`;
     return { blob, filename };
   }
 
@@ -113,6 +113,11 @@ export function ExportPanel() {
             ? `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`
             : "Color at least one token to enable export."}
         </span>
+        {pairedIconTheme ? (
+          <span className="field-hint">Also installs <b>{pairedIconTheme.displayName}</b> as a recommended icon theme.</span>
+        ) : (
+          <span className="field-hint">Tip: pair an icon theme in the section above so file icons match too.</span>
+        )}
       </div>
 
       <div className="export-actions">

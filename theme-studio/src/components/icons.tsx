@@ -260,3 +260,11 @@ export function CompassIcon({ size = 13, className }: IconProps) {
     </svg>
   );
 }
+
+export function FolderIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M4 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h6.5A1.5 1.5 0 0 1 19.5 8.5v9A1.5 1.5 0 0 1 18 19H6a1.5 1.5 0 0 1-1.5-1.5z" strokeLinejoin="round" />
+    </svg>
+  );
+}
