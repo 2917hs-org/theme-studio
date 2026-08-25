@@ -27,6 +27,7 @@ npm run dev
 
 - **Tokenization**: real TextMate grammars (`public/grammars/*.tmLanguage.json`) are compiled with `vscode-textmate` + `vscode-oniguruma` (WASM) and wired into Monaco as a custom tokens provider (`src/textmate/`), so the editor highlights exactly the way VS Code does — not Monaco's built-in Monarch tokenizers.
 - **Color assignment**: clicking a token resolves its full scope chain and hands the deepest scope to the inspector (`src/components/InspectorPanel.tsx`); colors are kept per scope, per theme mode (dark/light) in `src/store/AssignmentsContext.tsx`.
+- **Presets**: `src/components/PresetPicker.tsx` applies one of several built-in color schemes (`src/theme/presets.ts`) in a click, as a starting point or a fast way to see the app in action.
 - **Live preview**: the assigned colors are compiled into a Monaco theme on every change (`src/theme/themeBuilder.ts`) so the editor always reflects exactly what will be exported.
 - **Export**: `src/vsix/buildVsix.ts` packages a real VS Code extension — `package.json`, `extension.vsixmanifest`, an icon, and one theme JSON file per mode you've actually colored — into a `.vsix` zip with [`fflate`](https://github.com/101arrowz/fflate), entirely client-side. Dark and Light are bundled into a single package (two `contributes.themes` entries) whenever both have colors, instead of forcing two separate exports.
 
