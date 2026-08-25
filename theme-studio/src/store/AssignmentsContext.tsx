@@ -6,7 +6,7 @@ import { clearPersistedTheme, hasMeaningfulContent, loadPersistedTheme, savePers
 
 export type { ChromeOverride };
 
-export const DEFAULT_THEME_NAME = 'My Theme';
+export const DEFAULT_THEME_NAME = 'VSTS My Theme';
 const MAX_RECENT_COLORS = 12;
 // Debounced so dragging a color picker (which fires setColor continuously)
 // doesn't write to localStorage on every frame.
