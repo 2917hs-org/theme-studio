@@ -29,9 +29,7 @@ npm run dev
 
 ## Deployment
 
-Deploy configs for both [Vercel](theme-studio/vercel.json) and [Netlify](theme-studio/netlify.toml) are included, set to build from `theme-studio/` with `npm run build` and publish `dist/`. CI (`.github/workflows/ci.yml`) type-checks, lints, tests, and builds on every push and pull request to `main`.
-
-Before going live, replace the placeholder `https://your-domain-here.example` domain in [`theme-studio/index.html`](theme-studio/index.html) and [`theme-studio/public/sitemap.xml`](theme-studio/public/sitemap.xml)/[`robots.txt`](theme-studio/public/robots.txt) with the deployed site's real origin.
+The live site is deployed to GitHub Pages by [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) on every push to `release`, at https://2917hs-org.github.io/theme-studio/. Deploy configs for [Vercel](theme-studio/vercel.json) and [Netlify](theme-studio/netlify.toml) are also included as alternative hosts. GitHub Pages can't send custom HTTP response headers at all, so the long-lived asset caching and security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Permissions-Policy`) in those two files only take effect if the site is actually hosted on Vercel or Netlify — as a baseline that works on any host including GitHub Pages, [`index.html`](theme-studio/index.html) also ships a `Content-Security-Policy` and `Referrer-Policy` via `<meta>` tags; the header-based CSP on Vercel/Netlify additionally covers `frame-ancestors` (clickjacking protection), which `<meta>` delivery can't express. CI (`.github/workflows/ci.yml`) type-checks, lints, tests, and builds on every push and pull request to `main` and `release`; the deploy workflow runs the same checks before publishing.
 
 ## Releases
 

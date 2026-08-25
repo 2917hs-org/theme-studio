@@ -153,6 +153,15 @@ export function ExportPanel() {
                 {installInfo.copied ? 'Copied' : 'Copy'}
               </button>
             </div>
+            {!installInfo.copied && (
+              // Clipboard writes can be silently denied (locked-down browser
+              // permissions, an embedded/insecure context, ...) — the button
+              // above just reverting to "Copy" with no explanation leaves
+              // someone thinking it worked. Only shows once a copy has
+              // actually been attempted (see copyToClipboard in
+              // vsix/installLocal.ts), never before that first attempt.
+              <span className="install-copy-hint">Couldn't copy automatically — select the command above and copy it yourself.</span>
+            )}
           </div>
         </div>
       )}
