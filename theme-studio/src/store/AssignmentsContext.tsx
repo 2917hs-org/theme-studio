@@ -39,6 +39,9 @@ interface AssignmentsContextValue {
   setChrome: (mode: ThemeMode, chrome: ChromeOverride) => void;
   themeName: string;
   setThemeName: (name: string) => void;
+  /** Whether the Theme name field should keep following the "vsts-[product]-[icon]" auto-fill as presets/icon pairings change — true until the user directly edits the field, and re-armed by resetAll(). Lives here (not as component-local state in ExportPanel) so resetAll can actually clear it; see ExportPanel.tsx's auto-fill effect for how it's used. */
+  themeNameAutoTracked: boolean;
+  setThemeNameAutoTracked: (tracked: boolean) => void;
   /** The name of whichever product/color theme is currently selected — a preset, or an uploaded/Marketplace theme's own name. Null until one is actually picked (hand-coloring from scratch doesn't set this). Feeds the "vsts-[product-theme]-[icon-theme]" auto-fill in ExportPanel.tsx; distinct from `themeName` so a later selection can still update the auto-fill even after the user has typed a custom name that no longer matches it verbatim. */
   productThemeName: string | null;
   setProductThemeName: (name: string | null) => void;
@@ -78,9 +81,12 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       : emptyAssignmentsByMode(),
   );
   const [themeName, setThemeName] = useState(restored?.themeName ?? DEFAULT_THEME_NAME);
-  // Never persisted — a restored session's saved `themeName` is treated as
-  // already-customized text (see ExportPanel.tsx's divergence check), so
-  // there's no reliable "was this still auto-tracking" fact to restore here.
+  // A restored session's saved `themeName` is treated as already-customized
+  // text, never auto-fill fodder — only a genuinely empty restore (or no
+  // restore at all) starts out auto-tracking.
+  const [themeNameAutoTracked, setThemeNameAutoTracked] = useState(() => !restored?.themeName);
+  // Never persisted — see ExportPanel.tsx's auto-fill effect for how this
+  // pairs with `themeNameAutoTracked` above.
   const [productThemeName, setProductThemeName] = useState<string | null>(null);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [chromeByMode, setChromeByMode] = useState<Record<ThemeMode, ChromeOverride>>(() =>
@@ -159,6 +165,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     setAssignmentsByMode(emptyAssignmentsByMode());
     setChromeByMode(emptyChromeByMode());
     setThemeName(DEFAULT_THEME_NAME);
+    setThemeNameAutoTracked(true);
     setProductThemeName(null);
     setRecentColors([]);
     setPairedIconTheme(null);
@@ -204,6 +211,8 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       setChrome,
       themeName,
       setThemeName,
+      themeNameAutoTracked,
+      setThemeNameAutoTracked,
       productThemeName,
       setProductThemeName,
       setColor,
@@ -225,6 +234,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       chromeFor,
       setChrome,
       themeName,
+      themeNameAutoTracked,
       productThemeName,
       setColor,
       clearColor,

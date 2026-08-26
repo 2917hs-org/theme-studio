@@ -1181,6 +1181,10 @@ button {
   color: var(--text-faint);
 }
 
+.field-hint-error {
+  color: var(--danger-text-strong);
+}
+
 .export-filename-hint {
   color: var(--text-dim);
 }
@@ -1434,18 +1438,31 @@ button {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  /* Below the topbar (~56px), not at the bottom — the bottom edge sits
+     right behind the Monaco editor, whose background is whatever preset
+     is active (Tokyo Night's #1a1b26, One Dark Pro's #282c34, ...), so a
+     dark pill there had almost nothing to visually separate it from the
+     page underneath. Up here it's consistently over the topbar's own
+     fixed dark chrome instead of a color the user is actively editing. */
+  top: 72px;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 8px;
   background: var(--toast-bg);
   color: var(--toast-text);
-  border: 1px solid var(--toast-border);
+  /* An accent border, not --toast-border (a dark neutral barely a shade
+     off from --toast-bg itself) — that pairing gave the pill almost no
+     visible edge of its own, so on a dark background the whole thing
+     read as bare floating text rather than a distinct notification.
+     A bright, theme-independent accent line stays visible against any
+     editor background, dark or light. */
+  border: 1px solid var(--accent);
   border-radius: 999px;
   padding: 9px 16px;
   font-size: 12.5px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
   z-index: 50;
   animation: toast-in 220ms ease;
   max-width: min(520px, calc(100vw - 32px));
@@ -1459,7 +1476,7 @@ button {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px);
+    transform: translateX(-50%) translateY(-8px);
   }
   to {
     opacity: 1;

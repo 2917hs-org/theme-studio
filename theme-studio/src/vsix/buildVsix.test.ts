@@ -86,6 +86,21 @@ describe('composeAutoThemeName', () => {
     expect(composed).toBe('vsts-midnight-material-icon-theme')
     expect(buildExportSlug('Midnight', MATERIAL_ICON_THEME)).toBe(composed)
   })
+
+  it('appends the mode suffix when one is given', () => {
+    expect(composeAutoThemeName('Midnight', null, 'dark')).toBe('vsts-midnight-dark')
+    expect(composeAutoThemeName('Midnight', null, 'light')).toBe('vsts-midnight-light')
+  })
+
+  it('omits the mode suffix when none is given, same as before this param existed', () => {
+    expect(composeAutoThemeName('Midnight', null, null)).toBe('vsts-midnight')
+    expect(composeAutoThemeName('Midnight', null, undefined)).toBe('vsts-midnight')
+  })
+
+  it('stacks the mode suffix after the icon segment, still just "vsts" plus segments with nothing selected', () => {
+    expect(composeAutoThemeName('Midnight', MATERIAL_ICON_THEME, 'dark')).toBe('vsts-midnight-material-icon-theme-dark')
+    expect(composeAutoThemeName(null, null, 'dark')).toBe('vsts-dark')
+  })
 })
 
 describe('buildVsixBlob', () => {
@@ -104,7 +119,7 @@ describe('buildVsixBlob', () => {
     const assignments = new Map([['keyword', '#ff0000']])
     const blob = await buildVsixBlob('My Theme', [{ mode: 'dark', assignments }])
     expect(blob).toBeInstanceOf(Blob)
-    expect(blob.type).toBe('application/zip')
+    expect(blob.type).toBe('application/octet-stream')
     expect(blob.size).toBeGreaterThan(0)
   })
 
