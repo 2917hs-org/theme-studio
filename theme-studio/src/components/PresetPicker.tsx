@@ -110,7 +110,7 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
           title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
         >
           <UploadIcon size={18} />
-          <span className="preset-action-card-label">Upload file</span>
+          <span className="preset-action-card-label">Import</span>
         </button>
         <button
           id="tour-search"
@@ -120,7 +120,7 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
           title="Search the VS Code Marketplace for a theme to tweak and export as your own — also where you pair an icon theme"
         >
           <SearchIcon size={18} />
-          <span className="preset-action-card-label">Search Marketplace</span>
+          <span className="preset-action-card-label">Marketplace</span>
         </button>
       </div>
 
