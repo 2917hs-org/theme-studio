@@ -9,16 +9,19 @@ import { AssignedColorsPanel } from './components/AssignedColorsPanel';
 import { ExportPanel } from './components/ExportPanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SharePanel } from './components/SharePanel';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
 import { Toast } from './components/Toast';
 import { useToast } from './components/useToast';
-import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
+import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider } from './store/AssignmentsContext';
 import { useAssignments } from './store/useAssignments';
 import { DEFAULT_THEME_NAME } from './store/defaultThemeName';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 import { downloadInFlight } from './vsix/buildVsix';
+import { track } from './analytics/track';
+import { clearShareLinkParam, decodeShareLink, readShareLinkParam, shareLinkToImportedTheme, type ShareLinkPayload } from './share/shareLink';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
@@ -34,7 +37,22 @@ function AppInner() {
   const [resetPending, setResetPending] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showTourInvite, setShowTourInvite] = useState(false);
-  const { assignmentsFor, chromeFor, mode, themeName, pairedIconTheme, resetAll, wasRestored } = useAssignments();
+  const [pendingShareLink, setPendingShareLink] = useState<ShareLinkPayload | null>(null);
+  const {
+    assignmentsFor,
+    chromeFor,
+    mode,
+    setMode,
+    themeName,
+    setThemeName,
+    setThemeNameAutoTracked,
+    setProductThemeName,
+    pairedIconTheme,
+    setPairedIconTheme,
+    importTheme,
+    resetAll,
+    wasRestored,
+  } = useAssignments();
   const { toastMessage, showToast } = useToast();
   // A theme being applied/imported/used gets a shorter, snappier
   // notification than the app's other toasts (session-restore, Reset) —
@@ -42,6 +60,52 @@ function AppInner() {
   // surfacing news they need a normal beat to notice and read.
   const THEME_TOAST_DURATION_MS = 2000;
   const showThemeToast = (message: string) => showToast(message, THEME_TOAST_DURATION_MS);
+
+  useEffect(() => {
+    track('app_loaded');
+  }, []);
+
+  // Replaces the whole theme-in-progress with what a shared `?t=` link
+  // encodes (see src/share/shareLink.ts) — reuses `importTheme` for the
+  // assignments/chrome swap, then explicitly overrides the mode, theme name,
+  // and paired icon theme importTheme deliberately doesn't touch, so the
+  // hydrated state matches the sender's exactly rather than just their colors.
+  function hydrateFromShareLink(payload: ShareLinkPayload) {
+    importTheme(shareLinkToImportedTheme(payload));
+    setMode(payload.mode);
+    setThemeName(payload.themeName);
+    setThemeNameAutoTracked(false);
+    setProductThemeName(payload.productThemeName);
+    setPairedIconTheme(payload.pairedIconTheme);
+  }
+
+  // Runs once at mount, before the user can do anything that would count as
+  // "unsaved local work" — a link is only ever the *initial* URL you land
+  // on, never something to re-check after interacting with the app.
+  useEffect(() => {
+    const encoded = readShareLinkParam();
+    if (!encoded) return;
+    // Stripped immediately either way — a malformed, stale, or already-applied
+    // link shouldn't keep re-triggering on refresh or Back navigation.
+    clearShareLinkParam();
+    const result = decodeShareLink(encoded);
+    if (!result.ok) {
+      showToast(
+        result.reason === 'old-version'
+          ? 'This link was made with an older version of Theme Studio.'
+          : "This link looks broken — couldn't load it.",
+      );
+      return;
+    }
+    if (wasRestored) {
+      // Don't silently clobber a real autosaved session — ask first.
+      setPendingShareLink(result.payload);
+      return;
+    }
+    hydrateFromShareLink(result.payload);
+    showThemeToast('Loaded the shared theme.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
   // so this only runs once per mount rather than on every render, and
@@ -56,6 +120,7 @@ function AppInner() {
   function startTour() {
     setShowTourInvite(false);
     setShowTour(true);
+    track('tour_started');
   }
 
   function dismissTourInvite() {
@@ -98,10 +163,12 @@ function AppInner() {
   function handleRegenerate() {
     setSeed((s) => s + 1);
     setSelection(null);
+    track('sample_regenerated');
   }
 
   function handleSelectLanguage(lang: LanguageDef) {
     if (lang.id === language.id) return;
+    track('language_selected', { language: lang.id });
     // Color assignments key on universal TextMate scope names (keyword,
     // string, ...), not anything TypeScript- or Python-specific — the same
     // "keyword" purple applies correctly in any grammar. So switching
@@ -264,6 +331,13 @@ function AppInner() {
               </div>
               <ExportPanel />
             </div>
+
+            <div className="pinned-footer-section">
+              <div className="pinned-footer-label">
+                <Share2Icon size={14} /> Share
+              </div>
+              <SharePanel onCopied={showThemeToast} />
+            </div>
           </div>
         </aside>
       </main>
@@ -272,7 +346,14 @@ function AppInner() {
 
       {showTourInvite && <TourInvite onStart={startTour} onDismiss={dismissTourInvite} />}
 
-      {showTour && <SiteTour onDone={() => setShowTour(false)} />}
+      {showTour && (
+        <SiteTour
+          onDone={() => {
+            track('tour_completed');
+            setShowTour(false);
+          }}
+        />
+      )}
 
       {resetPending && (
         <ConfirmDialog
@@ -287,6 +368,27 @@ function AppInner() {
           danger
           onConfirm={confirmReset}
           onCancel={cancelReset}
+        />
+      )}
+
+      {pendingShareLink && (
+        <ConfirmDialog
+          title="Load shared theme?"
+          body={
+            <>
+              You have unsaved work from a previous session in this browser. Loading this link replaces it — every
+              color assignment, background/text override, theme name, and paired icon theme — with the shared theme.
+              This can't be undone.
+            </>
+          }
+          confirmLabel="Load shared theme"
+          danger
+          onConfirm={() => {
+            hydrateFromShareLink(pendingShareLink);
+            setPendingShareLink(null);
+            showThemeToast('Loaded the shared theme.');
+          }}
+          onCancel={() => setPendingShareLink(null)}
         />
       )}
     </div>
