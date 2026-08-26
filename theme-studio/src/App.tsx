@@ -18,6 +18,7 @@ import { AssignmentsProvider } from './store/AssignmentsContext';
 import { useAssignments } from './store/useAssignments';
 import { DEFAULT_THEME_NAME } from './store/defaultThemeName';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
+import { downloadInFlight } from './vsix/buildVsix';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
@@ -80,6 +81,11 @@ function AppInner() {
   useEffect(() => {
     if (totalAssignments === 0) return;
     function handleBeforeUnload(e: BeforeUnloadEvent) {
+      // Safari, unlike Chrome/Firefox, doesn't cleanly exempt an `<a
+      // download>` click from its normal navigation/unload pipeline while a
+      // `beforeunload` listener is attached — see downloadInFlight's doc
+      // comment in buildVsix.ts for the full story.
+      if (downloadInFlight.current) return;
       e.preventDefault();
       e.returnValue = '';
     }

@@ -131,17 +131,7 @@ const PUBLISHER = 'vscode-theme-studio';
 const HOMEPAGE = 'https://2917hs-org.github.io/theme-studio/';
 const REPOSITORY = 'https://github.com/2917hs-org/theme-studio';
 
-interface AssembledVsix {
-  blob: Blob;
-  // The raw zip bytes alongside the Blob wrapping them — `downloadBlob`
-  // needs these directly for its Safari data: URL fallback, since deriving
-  // them back out of the Blob would mean an async `blob.arrayBuffer()` call,
-  // reintroducing exactly the gap-before-click that Safari can't tolerate
-  // (see `iconBytesResolved` above).
-  bytes: Uint8Array;
-}
-
-function assembleVsix(themeName: string, variants: ThemeVariant[], iconBytes: Uint8Array | null, pairedIconTheme?: PairedIconTheme | null): AssembledVsix {
+function assembleVsix(themeName: string, variants: ThemeVariant[], iconBytes: Uint8Array | null, pairedIconTheme?: PairedIconTheme | null): Blob {
   if (variants.length === 0) throw new Error('buildVsixBlob requires at least one theme variant.');
   const slug = buildExportSlug(themeName, pairedIconTheme);
   const multiple = variants.length > 1;
@@ -266,63 +256,45 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
   // the anchor's `download` attribute set. Doesn't affect the resulting
   // file: VS Code (like the OS download itself) goes by the .vsix
   // extension, never by this transient blob-level tag.
-  const blob = new Blob([zipped as BlobPart], { type: 'application/octet-stream' });
-  return { blob, bytes: zipped };
+  return new Blob([zipped as BlobPart], { type: 'application/octet-stream' });
 }
 
 export async function buildVsixBlob(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): Promise<Blob> {
   const iconBytes = await fetchIconBytes();
-  return assembleVsix(themeName, variants, iconBytes, pairedIconTheme).blob;
+  return assembleVsix(themeName, variants, iconBytes, pairedIconTheme);
 }
 
 // The click-path entry point: synchronous end to end, so callers can build
 // and hand off the download without ever awaiting (see the comment on
 // `iconBytesResolved` above for why that matters on Safari). Reads whatever
 // icon bytes have settled by now, shipping without one if the fetch is
-// still in flight rather than blocking the export on it. Returns the raw
-// bytes alongside the Blob — see `downloadBlob`'s Safari fallback below.
-export function buildVsixBlobSync(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): AssembledVsix {
+// still in flight rather than blocking the export on it.
+export function buildVsixBlobSync(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): Blob {
   return assembleVsix(themeName, variants, iconBytesResolved, pairedIconTheme);
 }
 
-// Excludes Chrome/Chromium and Android WebViews, which both carry "Safari"
-// in their UA string for compatibility — this only matches real Safari
-// (desktop and iOS, the latter being WebKit-only regardless of the browser
-// chrome around it).
-const isSafari = typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+// Set for the duration of the download click below (through its deferred
+// cleanup, not just the synchronous click() call — see that setTimeout's
+// comment for why the click's own effects may not be fully settled the
+// instant click() returns), and checked by App.tsx's `beforeunload` guard.
+// Safari, unlike Chrome/Firefox, doesn't cleanly exempt an `<a download>`
+// click from its normal navigation/unload pipeline — with an active
+// `beforeunload` listener on the page (present here whenever there's
+// anything colored, which is also exactly when export is enabled), Safari's
+// own heuristic for "is this a download, not a real navigation" gets
+// confused and it falls through to actually navigating the tab to the blob:
+// URL, which it then can't render ("Safari Can't Open the Page" /
+// WebKitBlobResource error 1). Suppressing the guard removes that ambiguity.
+export const downloadInFlight = { current: false };
 
-// Base64-encodes in chunks rather than `btoa(String.fromCharCode(...bytes))`
-// in one call — spreading a large typed array as individual arguments can
-// blow the call stack. 32KB keeps well clear of that limit for files far
-// bigger than any .vsix this app produces.
-function bytesToBase64(bytes: Uint8Array): string {
-  const CHUNK_SIZE = 0x8000;
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE));
-  }
-  return btoa(binary);
-}
-
-export function downloadBlob({ blob, bytes }: AssembledVsix, filename: string): void {
-  // Safari has a long-standing, still-unresolved bug where `<a download>`
-  // on a blob: URL silently falls back to a plain top-level navigation
-  // instead of saving the file — the browser then tries to render the zip
-  // as a page and fails ("Safari Can't Open the Page" / WebKitBlobResource
-  // error 1). This isn't a CSP issue (nothing is logged to the console when
-  // it happens, and CSP's fetch directives don't govern top-level anchor
-  // navigation in the first place) — it reproduces even with `blob:`
-  // explicitly allowed everywhere and the click kept fully synchronous.
-  // data: URLs don't have this problem, so Safari gets one instead, built
-  // synchronously from the zip bytes so there's still no async gap before
-  // click(). Other browsers keep the blob: URL, which is cheaper for larger
-  // files and doesn't hit this bug outside WebKit.
-  const url = isSafari ? `data:application/octet-stream;base64,${bytesToBase64(bytes)}` : URL.createObjectURL(blob);
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
   a.rel = 'noopener';
   document.body.appendChild(a);
+  downloadInFlight.current = true;
   a.click();
   // Both cleanup steps deferred to a macrotask, not run synchronously right
   // after click() — that's already true below for the URL (some WebKit
@@ -331,9 +303,12 @@ export function downloadBlob({ blob, bytes }: AssembledVsix, filename: string): 
   // drop the download's hand-off entirely if the anchor is detached from
   // the DOM before its own click-handling has fully settled, even though
   // click() itself returns synchronously. Removing the element on the same
-  // delayed macrotask as the URL revocation covers both at once.
+  // delayed macrotask as the URL revocation covers both at once, and
+  // downloadInFlight stays set through that same window so it's still true
+  // if Safari's own navigation decision lands slightly after click() returns.
   setTimeout(() => {
     a.remove();
-    if (!isSafari) URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);
+    downloadInFlight.current = false;
   }, 30_000);
 }
