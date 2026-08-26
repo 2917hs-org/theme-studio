@@ -129,13 +129,16 @@ describe('searchMarketplaceIconThemes', () => {
     versions: [
       {
         version: '5.0.0',
-        files: [{ assetType: 'Microsoft.VisualStudio.Services.Icons.Default', source: 'https://cdn.example/icon.png' }],
+        files: [
+          { assetType: 'Microsoft.VisualStudio.Services.Icons.Default', source: 'https://cdn.example/icon.png' },
+          { assetType: 'Microsoft.VisualStudio.Services.VSIXPackage', source: 'https://cdn.example/material-icon-theme.vsix' },
+        ],
       },
     ],
     statistics: [{ statisticName: 'install', value: 9876543 }],
   }
 
-  it('parses a well-formed response into results, with no vsixUrl to download', async () => {
+  it('parses a well-formed response into results, including the vsixUrl a real icon preview needs', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: true, json: async () => galleryResponse([SAMPLE_ICON_THEME]) })),
@@ -150,9 +153,10 @@ describe('searchMarketplaceIconThemes', () => {
         shortDescription: 'Material Design Icons.',
         iconUrl: 'https://cdn.example/icon.png',
         installCount: 9876543,
+        version: '5.0.0',
+        vsixUrl: 'https://cdn.example/material-icon-theme.vsix',
       },
     ])
-    expect((results[0] as { vsixUrl?: string }).vsixUrl).toBeUndefined()
   })
 
   it('queries the icon-theme tag, not color-theme', async () => {
@@ -167,14 +171,14 @@ describe('searchMarketplaceIconThemes', () => {
     expect(body.filters[0].criteria).not.toContainEqual({ filterType: 1, value: 'color-theme' })
   })
 
-  it('does not require a downloadable VSIX asset, unlike color-theme search', async () => {
+  it('skips a result with no downloadable VSIX asset — nothing to preview or pair with reliably', async () => {
     const noVsix = { ...SAMPLE_ICON_THEME, versions: [{ version: '1.0.0', files: [] }] }
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: true, json: async () => galleryResponse([noVsix]) })),
     )
     const results = await searchMarketplaceIconThemes('material')
-    expect(results).toHaveLength(1)
+    expect(results).toHaveLength(0)
   })
 
   it('throws MarketplaceError on a non-OK response', async () => {
@@ -183,6 +187,32 @@ describe('searchMarketplaceIconThemes', () => {
       vi.fn(async () => ({ ok: false, status: 503 })),
     )
     await expect(searchMarketplaceIconThemes('x')).rejects.toThrow(MarketplaceError)
+  })
+
+  // Regression: "Material Product Icons" carries the same `icon-theme` tag
+  // as real file icon themes but only contributes `productIconThemes` (VS
+  // Code's own UI glyphs) — it downloaded fine and always failed to
+  // preview. Confirmed against the real package before writing this fix.
+  it('excludes product icon themes (tagged product-icon-theme) even though they share the icon-theme tag', async () => {
+    const productIconTheme = { ...SAMPLE_ICON_THEME, extensionName: 'material-product-icons', tags: ['icon-theme', 'product-icon-theme'] }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => galleryResponse([productIconTheme, SAMPLE_ICON_THEME]) })),
+    )
+    const results = await searchMarketplaceIconThemes('material')
+    expect(results.map((r) => r.extensionName)).toEqual(['material-icon-theme'])
+  })
+
+  it('requests category and tags from the gallery, since filtering above depends on them', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => ({
+      ok: true,
+      json: async () => galleryResponse([SAMPLE_ICON_THEME]),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await searchMarketplaceIconThemes('material')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    // IncludeCategoryAndTags = 4
+    expect(body.flags & 4).toBe(4)
   })
 })
 

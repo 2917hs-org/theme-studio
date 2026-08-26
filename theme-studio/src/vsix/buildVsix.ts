@@ -27,13 +27,26 @@ export function slugify(name: string): string {
 // distinct from `displayName`, which stays exactly what the user typed.
 // Always carries the `vsts` product prefix, and folds in the paired icon
 // theme's own extension name (already a valid slug, so reused as-is rather
-// than re-derived from its display name) when one is paired. The default
-// theme name (DEFAULT_THEME_NAME) already starts with "VSTS" itself — this
-// checks for that rather than blindly prepending, so the common case stays
-// `vsts-my-theme` instead of doubling up as `vsts-vsts-my-theme`.
+// than re-derived from its display name) when one is paired. `themeName`
+// itself already starting with "vsts" (e.g. it's literally "vsts", the
+// no-selection default) is checked for rather than blindly prepending, so
+// that case stays `vsts` instead of doubling up as `vsts-vsts`.
 export function buildExportSlug(themeName: string, pairedIconTheme?: PairedIconTheme | null): string {
   const themeSlug = slugify(themeName);
   const parts = themeSlug === 'vsts' || themeSlug.startsWith('vsts-') ? [themeSlug] : ['vsts', themeSlug];
+  if (pairedIconTheme) parts.push(pairedIconTheme.extensionName);
+  return parts.join('-');
+}
+
+// The Theme name field's own live display value — "vsts-[product]-[icon]",
+// each segment present only while that thing is actually selected, "vsts"
+// alone when neither is. Deliberately takes the *raw* product theme name
+// (e.g. "Midnight"), not an already-composed string — feeding this
+// function's own output back into itself (or into buildExportSlug above)
+// would double up the icon segment, since it's already baked in once.
+export function composeAutoThemeName(productThemeName: string | null, pairedIconTheme?: PairedIconTheme | null): string {
+  const parts = ['vsts'];
+  if (productThemeName) parts.push(slugify(productThemeName));
   if (pairedIconTheme) parts.push(pairedIconTheme.extensionName);
   return parts.join('-');
 }
