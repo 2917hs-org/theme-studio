@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import { friendlyLabelFor } from '../data/scopeLabels';
 import { TrashIcon } from './icons';
 

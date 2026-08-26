@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { AssignmentsProvider, useAssignments } from '../store/AssignmentsContext'
+import { AssignmentsProvider } from '../store/AssignmentsContext'
+import { useAssignments } from '../store/useAssignments'
 import { ExportPanel } from './ExportPanel'
 
 const MATERIAL_ICON_THEME = {

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { THEME_PRESETS, type ThemePreset } from '../theme/presets';
 import { ROLE_SCOPES } from '../theme/presetPalette';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { ImportTab } from './ImportThemeDialog';
 import { SearchIcon, UploadIcon } from './icons';

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import { importThemeFile, ImportError, type ImportedTheme } from '../theme/importTheme';
 import { PRESET_SCOPES } from '../theme/presets';
 import type { LanguageDef } from '../data/languages';

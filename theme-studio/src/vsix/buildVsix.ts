@@ -278,12 +278,19 @@ export function downloadBlob(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  // a.click() only starts the download hand-off — some WebKit-based
-  // browsers have truncated in-flight downloads when the object URL is
-  // revoked in the same tick. A macrotask delay is enough for the browser
-  // to have read the blob before the URL is invalidated.
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  // Both cleanup steps deferred to a macrotask, not run synchronously right
+  // after click() — that's already true below for the URL (some WebKit
+  // builds truncate an in-flight download if the object URL is revoked in
+  // the same tick), and Safari in particular has also been reported to
+  // drop the download's hand-off entirely if the anchor is detached from
+  // the DOM before its own click-handling has fully settled, even though
+  // click() itself returns synchronously. Removing the element on the same
+  // delayed macrotask as the URL revocation covers both at once.
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 30_000);
 }

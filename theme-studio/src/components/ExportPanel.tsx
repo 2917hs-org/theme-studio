@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { buildVsixBlobSync, composeAutoThemeName, downloadBlob, slugify } from '../vsix/buildVsix';
 import { CheckCircleIcon, ExportIcon } from './icons';
