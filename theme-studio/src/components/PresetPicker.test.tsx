@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { LANGUAGES } from '../data/languages'
 import { AssignmentsProvider, useAssignments } from '../store/AssignmentsContext'
 import { ROLE_SCOPES } from '../theme/presetPalette'
@@ -13,7 +13,7 @@ const TOTAL_PRESET_SCOPES = Object.values(ROLE_SCOPES).reduce((sum, { scopes }) 
 
 // A thin consumer so the test can read/seed assignments state directly,
 // the same way App.tsx and the real panels do via useAssignments.
-function Harness() {
+function Harness({ onApplied }: { onApplied?: (message: string) => void }) {
   const { assignmentsFor, setColor, setMode } = useAssignments()
   return (
     <div>
@@ -27,17 +27,19 @@ function Harness() {
       </button>
       <div data-testid="dark-count">{assignmentsFor('dark').size}</div>
       <div data-testid="has-type">{String(assignmentsFor('dark').has('type'))}</div>
-      <PresetPicker language={LANGUAGES[0]} code="" />
+      <PresetPicker onApplied={onApplied} language={LANGUAGES[0]} code="" />
     </div>
   )
 }
 
 function setup() {
-  return render(
+  const onApplied = vi.fn()
+  render(
     <AssignmentsProvider>
-      <Harness />
+      <Harness onApplied={onApplied} />
     </AssignmentsProvider>,
   )
+  return { onApplied }
 }
 
 describe('PresetPicker', () => {
@@ -50,7 +52,7 @@ describe('PresetPicker', () => {
 
     // Dark mode already has a hand-colored scope, so this opens a confirm
     // dialog instead of applying outright — confirm it to get through.
-    await user.click(screen.getByTitle('Apply the Dark Navy preset'))
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     await user.click(screen.getByRole('button', { name: 'Apply preset' }))
     // "type" isn't one of the ~160 scopes any preset role defines, so it
     // must be gone once the preset's full scope set replaces it.
@@ -62,15 +64,15 @@ describe('PresetPicker', () => {
     const user = userEvent.setup()
     setup()
 
-    await user.click(screen.getByTitle('Apply the Dark Navy preset'))
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
 
-    // Midnight is also a dark preset — applying it now would overwrite Dark Navy's colors.
-    await user.click(screen.getByTitle('Apply the Midnight preset'))
+    // One Dark Pro is also a dark preset — applying it now would overwrite Tokyo Night's colors.
+    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
     const dialog = screen.getByRole('alertdialog', { name: 'Replace your dark theme?' })
     expect(dialog).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('Midnight')
-    // Nothing applied yet — still Dark Navy's colors, untouched until confirmed.
+    expect(dialog).toHaveTextContent('One Dark Pro')
+    // Nothing applied yet — still Tokyo Night's colors, untouched until confirmed.
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
 
     await user.click(screen.getByRole('button', { name: 'Apply preset' }))
@@ -84,13 +86,13 @@ describe('PresetPicker', () => {
     const user = userEvent.setup()
     setup()
 
-    await user.click(screen.getByTitle('Apply the Dark Navy preset'))
-    await user.click(screen.getByTitle('Apply the Midnight preset'))
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
+    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    // Still Dark Navy — Midnight was never applied.
+    // Still Tokyo Night — One Dark Pro was never applied.
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
   })
 
@@ -98,8 +100,46 @@ describe('PresetPicker', () => {
     const user = userEvent.setup()
     setup()
 
-    await user.click(screen.getByTitle('Apply the Dark Navy preset'))
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
+  })
+})
+
+describe('PresetPicker onApplied notification', () => {
+  it('reports a message the moment a preset is applied directly, with nothing to overwrite', async () => {
+    const user = userEvent.setup()
+    const { onApplied } = setup()
+
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
+    expect(onApplied).toHaveBeenCalledTimes(1)
+    expect(onApplied).toHaveBeenCalledWith(expect.stringContaining('Tokyo Night'))
+  })
+
+  it('reports a message only after the overwrite confirm dialog is actually confirmed, not on the click that opened it', async () => {
+    const user = userEvent.setup()
+    const { onApplied } = setup()
+
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
+    onApplied.mockClear()
+
+    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    expect(onApplied).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Apply preset' }))
+    expect(onApplied).toHaveBeenCalledTimes(1)
+    expect(onApplied).toHaveBeenCalledWith(expect.stringContaining('One Dark Pro'))
+  })
+
+  it('does not report anything when the confirm dialog is cancelled', async () => {
+    const user = userEvent.setup()
+    const { onApplied } = setup()
+
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
+    onApplied.mockClear()
+
+    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onApplied).not.toHaveBeenCalled()
   })
 })

@@ -32,6 +32,12 @@ function AppInner() {
   const [showTourInvite, setShowTourInvite] = useState(false);
   const { assignmentsFor, chromeFor, mode, themeName, pairedIconTheme, resetAll, wasRestored } = useAssignments();
   const { toastMessage, showToast } = useToast();
+  // A theme being applied/imported/used gets a shorter, snappier
+  // notification than the app's other toasts (session-restore, Reset) —
+  // it's confirming something the user just watched happen on screen, not
+  // surfacing news they need a normal beat to notice and read.
+  const THEME_TOAST_DURATION_MS = 2000;
+  const showThemeToast = (message: string) => showToast(message, THEME_TOAST_DURATION_MS);
 
   // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
   // so this only runs once per mount rather than on every render, and
@@ -172,7 +178,7 @@ function AppInner() {
 
       <main className="app-main">
         <div className="editor-column">
-          <PresetPicker onImported={showToast} language={language} code={code} />
+          <PresetPicker onImported={showThemeToast} onApplied={showThemeToast} language={language} code={code} />
 
           <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
 

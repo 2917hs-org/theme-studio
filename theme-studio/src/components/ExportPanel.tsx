@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/AssignmentsContext';
 import type { ThemeMode } from '../theme/mode';
-import { buildExportSlug, buildVsixBlobSync, composeAutoThemeName, downloadBlob } from '../vsix/buildVsix';
+import { buildVsixBlobSync, composeAutoThemeName, downloadBlob, slugify } from '../vsix/buildVsix';
 import { CheckCircleIcon, ExportIcon } from './icons';
 
 const MODES: ThemeMode[] = ['dark', 'light'];
 
 export function ExportPanel() {
-  const { mode, assignmentsFor, chromeFor, themeName, setThemeName, productThemeName, pairedIconTheme } = useAssignments();
+  const {
+    mode,
+    assignmentsFor,
+    chromeFor,
+    themeName,
+    setThemeName,
+    themeNameAutoTracked,
+    setThemeNameAutoTracked,
+    productThemeName,
+    pairedIconTheme,
+  } = useAssignments();
   const [justExported, setJustExported] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -19,38 +29,6 @@ export function ExportPanel() {
     },
     [],
   );
-
-  // The Theme name box auto-fills "vsts-[product theme]-[icon theme]" as
-  // each gets picked, but stays editable — the moment a keystroke makes the
-  // field diverge from what was last auto-filled, this stops touching it,
-  // so a custom name typed after the fact is never silently clobbered by a
-  // later preset click or icon pairing.
-  //
-  // Deliberately keyed only on `autoThemeName`, not `themeName` — reacting
-  // to every keystroke was the original (buggy) version of this: clearing
-  // the field to retype something new made `themeName === ''` true for one
-  // render, which force-refilled the auto value *before* the next
-  // keystroke landed, so a fresh custom name got typed onto the end of the
-  // old one instead of replacing it. Restricting this to only run when the
-  // selection itself changes means ordinary typing (including clearing the
-  // field) never triggers it at all — `themeName` is still read fresh
-  // inside the effect each time it *does* run, since a render always sees
-  // current state regardless of another effect's dependency list.
-  const autoThemeName = composeAutoThemeName(productThemeName, pairedIconTheme);
-  const lastAutoNameRef = useRef<string | null>(null);
-  useEffect(() => {
-    const previousAuto = lastAutoNameRef.current;
-    lastAutoNameRef.current = autoThemeName;
-    // First run ever (mount): only claim a genuinely untouched field — a
-    // name restored from a previous session is real, typed content, never
-    // overwritten just because nothing's "selected" yet in this session.
-    if (previousAuto === null) {
-      if (themeName === '') setThemeName(autoThemeName);
-      return;
-    }
-    if (themeName === previousAuto) setThemeName(autoThemeName);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoThemeName]);
 
   // Bundles every mode with real content into one .vsix — Dark and Light
   // are designed as a pair everywhere else in this app (the mode switcher,
@@ -69,23 +47,58 @@ export function ExportPanel() {
   // Falls back to the active mode alone only if neither has anything yet —
   // canExport below already keeps the export buttons disabled in that case.
   const exportModes = modesToExport.length > 0 ? modesToExport : [mode];
+  // Only names the export after a mode when it actually ships just one —
+  // computed from modesToExport (what's *really* colored), not the
+  // exportModes fallback above, so an untouched, nothing-colored-yet state
+  // doesn't misleadingly stamp a mode onto the still-empty default name.
+  const modeSuffix = modesToExport.length === 1 ? modesToExport[0] : null;
+
+  // The Theme name box auto-fills "vsts-[product theme]-[icon theme]-
+  // [mode]" as each gets picked, but stays editable — the moment a
+  // keystroke makes the field diverge from what was last auto-filled, this
+  // stops touching it, so a custom name typed after the fact is never
+  // silently clobbered by a later preset click or icon pairing.
+  //
+  // Whether the field is still auto-tracking lives in context
+  // (`themeNameAutoTracked`), not as a ref comparing name strings here —
+  // this used to infer "still tracking" from `themeName === <last auto
+  // value>`, kept in a component-local ref. That broke across a Reset:
+  // resetAll() clears `themeName`/`productThemeName` in context but has no
+  // way to reach into this ref, so it went on holding the *pre-reset* auto
+  // name. The next preset pick after a reset would then compare the
+  // freshly-emptied `themeName` against that stale value, find a mismatch,
+  // and skip the fill — the box just stayed blank from then on. A real
+  // boolean flag that resetAll can set directly has no such staleness.
+  const autoThemeName = composeAutoThemeName(productThemeName, pairedIconTheme, modeSuffix);
+  useEffect(() => {
+    if (themeNameAutoTracked) setThemeName(autoThemeName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoThemeName, themeNameAutoTracked]);
+
+  const trimmedThemeName = themeName.trim();
 
   // Synchronous end to end — Safari only honors the anchor `download`
   // attribute on a blob: URL when the click that triggers it runs with no
   // async gap beforehand, so nothing here may sit behind an `await`.
   function buildCurrentVsix(): { blob: Blob; filename: string } {
     const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
-    // While the box is still auto-tracking, feed buildExportSlug the *raw*
-    // product name (e.g. "Midnight") rather than the already-composed
-    // "vsts-midnight-..." string sitting in the box — otherwise the icon
-    // segment would get appended a second time. Once the user has typed
-    // something of their own, that text becomes the product component
-    // instead, and buildExportSlug still wraps it in "vsts-...-[icon]" so a
-    // custom rename never loses the icon-pairing signal from the filename.
-    const isAutoTracking = themeName === autoThemeName;
-    const productComponent = (isAutoTracking ? productThemeName : themeName) || 'vsts';
+    // The *friendly* label VS Code shows inside the theme itself
+    // (package.json displayName, the picker entry) — deliberately separate
+    // from the filename above, and still allowed to fall back to the raw
+    // product name/'vsts' the way it always has; unlike the filename, nothing
+    // requires this to look like a slug.
+    const productComponent = (themeNameAutoTracked ? productThemeName : trimmedThemeName) || 'vsts';
     const blob = buildVsixBlobSync(productComponent, variants, pairedIconTheme);
-    const filename = `${buildExportSlug(productComponent, pairedIconTheme)}.vsix`;
+    // Slugifies the box's *own* text directly, rather than re-deriving a
+    // name from productThemeName/pairedIconTheme the way this used to —
+    // that second derivation is exactly what let a custom-typed box value
+    // and the downloaded file disagree: the box showed your literal text,
+    // but the file was rebuilt from scratch out of the underlying
+    // selection, silently dropping or reformatting whatever you'd actually
+    // typed. This way the two can't drift apart — the file's base name IS
+    // the box, always (see the "Downloads as…" hint below, which shows the
+    // exact same computation).
+    const filename = `${slugify(trimmedThemeName)}.vsix`;
     return { blob, filename };
   }
 
@@ -106,7 +119,14 @@ export function ExportPanel() {
     }
   }
 
-  const canExport = modesToExport.length > 0;
+  const hasColors = modesToExport.length > 0;
+  // Blocks export on a blank/whitespace-only name rather than letting
+  // `slugify`'s own 'custom-theme' fallback silently kick in — that
+  // fallback exists for callers outside this UI (tests, buildVsixBlobSync
+  // used directly), not to hand someone a file named after nothing they
+  // typed while the box in front of them still shows empty.
+  const hasValidName = trimmedThemeName.length > 0;
+  const canExport = hasColors && hasValidName;
 
   return (
     <>
@@ -130,10 +150,15 @@ export function ExportPanel() {
           type="text"
           className="export-name-input"
           value={themeName}
-          onChange={(e) => setThemeName(e.target.value)}
+          onChange={(e) => {
+            setThemeName(e.target.value);
+            if (themeNameAutoTracked) setThemeNameAutoTracked(false);
+          }}
           placeholder="e.g. Midnight Coder"
           aria-label="Theme name"
+          aria-invalid={hasColors && !hasValidName}
           title={themeName || undefined}
+          maxLength={60}
         />
         <button
           className="export-btn"
@@ -153,11 +178,18 @@ export function ExportPanel() {
       </div>
 
       <div className="export-hints">
-        <span className="field-hint">
-          {canExport
-            ? `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`
-            : "Color at least one token to enable export."}
+        <span className={`field-hint${hasColors && !hasValidName ? ' field-hint-error' : ''}`}>
+          {!hasColors
+            ? 'Color at least one token to enable export.'
+            : !hasValidName
+              ? 'Give your theme a name to enable export.'
+              : `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`}
         </span>
+        {hasValidName && (
+          <span className="field-hint export-filename-hint">
+            Downloads as <span className="export-filename">{slugify(trimmedThemeName)}.vsix</span>
+          </span>
+        )}
         {pairedIconTheme && (
           <span className="field-hint">Also installs <b>{pairedIconTheme.displayName}</b> as a recommended icon theme.</span>
         )}

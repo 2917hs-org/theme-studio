@@ -23,14 +23,19 @@ export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'custom-theme';
 }
 
-// The technical identifier (package name, manifest Id, download filename) —
-// distinct from `displayName`, which stays exactly what the user typed.
-// Always carries the `vsts` product prefix, and folds in the paired icon
-// theme's own extension name (already a valid slug, so reused as-is rather
-// than re-derived from its display name) when one is paired. `themeName`
-// itself already starting with "vsts" (e.g. it's literally "vsts", the
-// no-selection default) is checked for rather than blindly prepending, so
-// that case stays `vsts` instead of doubling up as `vsts-vsts`.
+// The technical identifier baked into the package itself (package.json's
+// `name`, the vsixmanifest's `Id`) — distinct from `displayName`, which
+// stays exactly what the user typed. Always carries the `vsts` product
+// prefix, and folds in the paired icon theme's own extension name (already
+// a valid slug, so reused as-is rather than re-derived from its display
+// name) when one is paired. `themeName` itself already starting with
+// "vsts" (e.g. it's literally "vsts", the no-selection default) is checked
+// for rather than blindly prepending, so that case stays `vsts` instead of
+// doubling up as `vsts-vsts`.
+//
+// NOT used for the downloaded filename — see ExportPanel.tsx's
+// buildCurrentVsix, which derives that directly from the Theme name box's
+// literal text (via `slugify` alone) so the two can never disagree.
 export function buildExportSlug(themeName: string, pairedIconTheme?: PairedIconTheme | null): string {
   const themeSlug = slugify(themeName);
   const parts = themeSlug === 'vsts' || themeSlug.startsWith('vsts-') ? [themeSlug] : ['vsts', themeSlug];
@@ -38,16 +43,29 @@ export function buildExportSlug(themeName: string, pairedIconTheme?: PairedIconT
   return parts.join('-');
 }
 
-// The Theme name field's own live display value — "vsts-[product]-[icon]",
-// each segment present only while that thing is actually selected, "vsts"
-// alone when neither is. Deliberately takes the *raw* product theme name
-// (e.g. "Midnight"), not an already-composed string — feeding this
-// function's own output back into itself (or into buildExportSlug above)
-// would double up the icon segment, since it's already baked in once.
-export function composeAutoThemeName(productThemeName: string | null, pairedIconTheme?: PairedIconTheme | null): string {
+// The Theme name field's own live display value —
+// "vsts-[product]-[icon]-[mode]", each segment present only while that
+// thing is actually selected/applicable, "vsts" alone when none are.
+// Deliberately takes the *raw* product theme name (e.g. "Midnight"), not
+// an already-composed string — feeding this function's own output back
+// into itself (or into buildExportSlug above) would double up the icon
+// segment, since it's already baked in once.
+//
+// `modeSuffix` records which VS Code UI mode this specific export actually
+// contains — 'dark' or 'light' when it ships only one, omitted when it
+// ships both (a two-variant pack isn't "the dark one", it covers both, the
+// same as any published theme with a light+dark pair). Pass the export's
+// single mode when exactly one has content, or null/undefined otherwise;
+// see ExportPanel.tsx for how that's derived from what's actually colored.
+export function composeAutoThemeName(
+  productThemeName: string | null,
+  pairedIconTheme?: PairedIconTheme | null,
+  modeSuffix?: ThemeMode | null,
+): string {
   const parts = ['vsts'];
   if (productThemeName) parts.push(slugify(productThemeName));
   if (pairedIconTheme) parts.push(pairedIconTheme.extensionName);
+  if (modeSuffix) parts.push(modeSuffix);
   return parts.join('-');
 }
 
@@ -231,7 +249,14 @@ Initial release, generated with [VS Code Theme Studio](${HOMEPAGE}).
   }
 
   const zipped = zipSync(files, { level: 6 });
-  return new Blob([zipped as BlobPart], { type: 'application/zip' });
+  // 'application/octet-stream', not 'application/zip' — Safari's blob:
+  // download handling (already worked around above for the sync-click and
+  // CSP gaps) is more reliable with an explicitly-opaque MIME type; 'zip'
+  // can still steer it toward its own archive-preview handling even with
+  // the anchor's `download` attribute set. Doesn't affect the resulting
+  // file: VS Code (like the OS download itself) goes by the .vsix
+  // extension, never by this transient blob-level tag.
+  return new Blob([zipped as BlobPart], { type: 'application/octet-stream' });
 }
 
 export async function buildVsixBlob(themeName: string, variants: ThemeVariant[], pairedIconTheme?: PairedIconTheme | null): Promise<Blob> {

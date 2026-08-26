@@ -17,12 +17,14 @@ const ImportThemeDialog = lazy(() => import('./ImportThemeDialog').then((m) => (
 interface PresetPickerProps {
   /** Reports a human-readable success message after a theme is imported, so the caller can surface it (e.g. as a toast). */
   onImported?: (message: string) => void;
+  /** Reports a human-readable success message after a Quick Start preset is applied — mirrors onImported, kept separate since applying and importing are distinct actions worth distinguishing at the call site even though both currently render the same way. */
+  onApplied?: (message: string) => void;
   /** The app's current sample — passed through to the import dialog so a Marketplace theme previews against code you're already looking at. */
   language: LanguageDef;
   code: string;
 }
 
-export function PresetPicker({ onImported, language, code }: PresetPickerProps) {
+export function PresetPicker({ onImported, onApplied, language, code }: PresetPickerProps) {
   const { setMode, chromeFor, assignmentsFor, setChrome, replaceAssignments, setProductThemeName } = useAssignments();
   // Which dialog tab to land on — null means the dialog is closed. Two
   // separate buttons below drive this so "Search Marketplace" is its own
@@ -52,6 +54,7 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
       for (const scope of scopes) next.set(scope, color);
     }
     replaceAssignments(preset.mode, next);
+    onApplied?.(`Applied "${preset.name}".`);
   }
 
   // Applying a preset replaces every color in that mode, not just the
@@ -90,7 +93,7 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
             className="preset-card"
             style={{ background: preset.background, color: preset.text, borderColor: preset.comments }}
             onClick={() => handlePresetClick(preset)}
-            title={`Apply the ${preset.name} preset`}
+            title={`Apply the ${preset.name} preset${preset.author ? ` — inspired by ${preset.author}'s theme of the same name` : ''}`}
           >
             <span className="preset-name">{preset.name}</span>
             <span className="preset-dots">
