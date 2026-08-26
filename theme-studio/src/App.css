@@ -622,6 +622,20 @@ button {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
+/* Hover preview — shown before the click commits, so the exact token
+   boundary is visible ahead of time instead of discovered after a misclick.
+   Deliberately lighter than .token-highlight so a click's result still reads
+   as the "real" selection once the two happen to coincide. */
+.token-hover {
+  cursor: pointer;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+:root[data-app-theme='light'] .token-hover {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.16);
+}
+
 .side-pane {
   /* Scales with the viewport between the mobile breakpoint and a roomy cap
      — wider than the old fixed 360px on typical desktop widths (reclaiming
