@@ -1,25 +1,32 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
-import { DEFAULT_THEME_NAME, useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/AssignmentsContext';
 import { importThemeFile, ImportError, type ImportedTheme } from '../theme/importTheme';
 import { PRESET_SCOPES } from '../theme/presets';
 import type { LanguageDef } from '../data/languages';
 import {
   fetchMarketplaceVsix,
   searchMarketplaceThemes,
+  searchMarketplaceIconThemes,
+  marketplaceItemUrl,
   MarketplaceError,
   type MarketplaceThemeResult,
+  type MarketplaceIconThemeResult,
+  type PairedIconTheme,
 } from '../marketplace/searchMarketplace';
+import { loadIconThemePreview, IconThemePreviewError, type IconThemePreviewAssets } from '../theme/iconThemeAssets';
+import { baselineColorsFor } from '../theme/baseline';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ThemePreview } from './ThemePreview';
-import { UploadIcon, SearchIcon, CloseIcon } from './icons';
+import { IconThemeExplorerPreview } from './IconThemeExplorerPreview';
+import { UploadIcon, SearchIcon, CloseIcon, FolderIcon } from './icons';
 
-export type ImportTab = 'upload' | 'search';
+export type ImportTab = 'upload' | 'search' | 'icon-theme';
 
 interface ImportThemeDialogProps {
   onClose: () => void;
   /** Reports a human-readable success message once an import lands, so the caller can surface it (e.g. as a toast). */
   onImported: (message: string) => void;
-  /** Which tab is active when the dialog opens — lets the two entry-point buttons (Import theme / Search Marketplace) land directly on the tab they promised. */
+  /** Which tab is active when the dialog opens — lets each entry-point button land directly on the tab it promised. */
   initialTab?: ImportTab;
   /** The app's current sample — reused so a Marketplace theme previews against code you're already looking at, rather than a disconnected snippet. */
   language: LanguageDef;
@@ -38,6 +45,10 @@ function resultKey(r: MarketplaceThemeResult): string {
   return `${r.publisherName}.${r.extensionName}`;
 }
 
+function iconResultKey(r: MarketplaceIconThemeResult): string {
+  return `${r.publisherName}.${r.extensionName}`;
+}
+
 function formatInstallCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -45,14 +56,17 @@ function formatInstallCount(n: number): string {
 }
 
 export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', language, code }: ImportThemeDialogProps) {
-  const { assignmentsFor, chromeFor, importTheme } = useAssignments();
+  const { assignmentsFor, chromeFor, importTheme, pairedIconTheme, setPairedIconTheme, mode, chrome } = useAssignments();
   const [tab, setTab] = useState<ImportTab>(initialTab);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Shared across both tabs — an import that would overwrite existing color
-  // work waits for confirmation regardless of where it came from. `source`
-  // travels with it so the confirm step still knows which tab it came from.
-  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; source: ImportTab } | null>(null);
+  // Shared across both color-theme tabs — an import that would overwrite
+  // existing color work waits for confirmation regardless of where it came
+  // from. Icon-theme pairing never touches assignments, so it has no
+  // equivalent — see handlePairIconTheme below. `closeAfter` rides along so
+  // the confirm dialog (deferred by a render or more) still closes/keeps
+  // open exactly as the original action intended.
+  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; closeAfter: boolean } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFile, setIsImportingFile] = useState(false);
@@ -85,6 +99,25 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const activePreviewKey = hoveredKey ?? pinnedKey;
 
+  // --- Icon-theme tab: entirely separate state, since it searches a
+  // different endpoint filter, previews real icon assets instead of parsed
+  // color themes, and never touches color assignments at all (no
+  // hasExistingWork/pendingImport equivalent — pairing is a reference, not
+  // a replace).
+  const [iconQuery, setIconQuery] = useState('');
+  const [iconResults, setIconResults] = useState<MarketplaceIconThemeResult[] | null>(null);
+  const [isIconSearching, setIsIconSearching] = useState(false);
+  const [iconSearchError, setIconSearchError] = useState<string | null>(null);
+  const [brokenIconThemeIcons, setBrokenIconThemeIcons] = useState<Set<string>>(new Set());
+  const iconSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iconSearchRequestIdRef = useRef(0);
+  const [iconHoveredKey, setIconHoveredKey] = useState<string | null>(null);
+  const [iconPinnedKey, setIconPinnedKey] = useState<string | null>(null);
+  const activeIconPreviewKey = iconHoveredKey ?? iconPinnedKey;
+  const activeIconResult = activeIconPreviewKey ? iconResults?.find((r) => iconResultKey(r) === activeIconPreviewKey) : undefined;
+  const iconPreviewCacheRef = useRef<Map<string, IconThemePreviewAssets | 'loading' | 'failed'>>(new Map());
+  const [, setIconPreviewTick] = useState(0);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -111,6 +144,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   useEffect(
     () => () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (iconSearchDebounceRef.current) clearTimeout(iconSearchDebounceRef.current);
     },
     [],
   );
@@ -148,6 +182,28 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     };
   }, [results]);
 
+  function ensureIconPreviewLoaded(key: string, vsixSource: { displayName: string; publisherName: string; extensionName: string; version: string; vsixUrl: string }) {
+    if (iconPreviewCacheRef.current.has(key)) return;
+    iconPreviewCacheRef.current.set(key, 'loading');
+    setIconPreviewTick((v) => v + 1);
+    fetchMarketplaceVsix(vsixSource)
+      .then(loadIconThemePreview)
+      .then((assets) => {
+        iconPreviewCacheRef.current.set(key, assets);
+        setIconPreviewTick((v) => v + 1);
+      })
+      .catch((err: unknown) => {
+        if (!(err instanceof MarketplaceError) && !(err instanceof IconThemePreviewError)) console.error('Icon theme preview failed:', err);
+        iconPreviewCacheRef.current.set(key, 'failed');
+        setIconPreviewTick((v) => v + 1);
+      });
+  }
+
+  useEffect(() => {
+    if (activeIconPreviewKey && activeIconResult) ensureIconPreviewLoaded(activeIconPreviewKey, activeIconResult);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIconPreviewKey, activeIconResult]);
+
   function describeVariants(theme: ImportedTheme): string {
     return theme.variants.length === 2 ? 'dark & light' : theme.variants[0].mode;
   }
@@ -159,25 +215,28 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   // let a dark-only import silently wipe real light-mode work with no warning.
   function hasExistingWork(): boolean {
     return (['dark', 'light'] as const).some((m) => {
-      const chrome = chromeFor(m);
-      return assignmentsFor(m).size > 0 || Boolean(chrome.background) || Boolean(chrome.foreground);
+      const c = chromeFor(m);
+      return assignmentsFor(m).size > 0 || Boolean(c.background) || Boolean(c.foreground);
     });
   }
 
-  function finishImport(theme: ImportedTheme, source: ImportTab) {
-    // A Marketplace theme is a starting point you're forking, not still
-    // "Dracula Official" once you start tweaking it — the export name
-    // resets to the default instead of carrying the original theme's name
-    // forward. An uploaded file keeps its own name, since that's usually
-    // someone iterating on their own in-progress theme.
-    importTheme(theme, source === 'search' ? DEFAULT_THEME_NAME : undefined);
+  function finishImport(theme: ImportedTheme, closeAfter: boolean) {
+    // The imported theme's own name becomes `productThemeName`, not
+    // `themeName` directly — ExportPanel's auto-fill picks it up from
+    // there (see composeAutoThemeName), so a custom name the user already
+    // typed into the Theme name box isn't silently overwritten.
+    importTheme(theme);
     onImported(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
-    onClose();
+    if (closeAfter) onClose();
   }
 
-  function handleParsedTheme(theme: ImportedTheme, source: ImportTab) {
-    if (hasExistingWork()) setPendingImport({ theme, source });
-    else finishImport(theme, source);
+  // `closeAfter` is false for a Marketplace "Use" — picking a theme there
+  // doesn't preclude also pairing an icon theme in the next tab, so the
+  // dialog stays open rather than forcing a reopen for that second step.
+  // Uploading a file has no such follow-up, so it still closes on success.
+  function handleParsedTheme(theme: ImportedTheme, closeAfter: boolean) {
+    if (hasExistingWork()) setPendingImport({ theme, closeAfter });
+    else finishImport(theme, closeAfter);
   }
 
   async function handleFileChosen(e: ChangeEvent<HTMLInputElement>) {
@@ -188,7 +247,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     setIsImportingFile(true);
     try {
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, 'upload');
+      handleParsedTheme(theme, true);
     } catch (err) {
       setUploadError(err instanceof ImportError ? err.message : 'Could not import this file.');
     } finally {
@@ -242,7 +301,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     try {
       const file = await fetchMarketplaceVsix(result);
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, 'search');
+      handleParsedTheme(theme, false);
     } catch (err) {
       setSearchError(
         err instanceof MarketplaceError || err instanceof ImportError ? err.message : `Could not import "${result.displayName}".`,
@@ -252,14 +311,61 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     }
   }
 
+  function runIconSearch(q: string) {
+    const requestId = ++iconSearchRequestIdRef.current;
+    setIsIconSearching(true);
+    setIconSearchError(null);
+    searchMarketplaceIconThemes(q)
+      .then((found) => {
+        if (requestId !== iconSearchRequestIdRef.current) return;
+        setIconResults(found);
+      })
+      .catch((err: unknown) => {
+        if (requestId !== iconSearchRequestIdRef.current) return;
+        setIconSearchError(err instanceof MarketplaceError ? err.message : 'Something went wrong searching the Marketplace.');
+        setIconResults(null);
+      })
+      .finally(() => {
+        if (requestId === iconSearchRequestIdRef.current) setIsIconSearching(false);
+      });
+  }
+
+  function handleIconQueryChange(value: string) {
+    setIconQuery(value);
+    if (iconSearchDebounceRef.current) clearTimeout(iconSearchDebounceRef.current);
+    if (!value.trim()) {
+      iconSearchRequestIdRef.current++;
+      setIconResults(null);
+      setIsIconSearching(false);
+      setIconSearchError(null);
+      setIconPinnedKey(null);
+      return;
+    }
+    iconSearchDebounceRef.current = setTimeout(() => runIconSearch(value), SEARCH_DEBOUNCE_MS);
+  }
+
+  function handlePairIconTheme(result: MarketplaceIconThemeResult) {
+    const paired: PairedIconTheme = {
+      publisherName: result.publisherName,
+      extensionName: result.extensionName,
+      displayName: result.displayName,
+      iconUrl: result.iconUrl,
+      vsixUrl: result.vsixUrl,
+    };
+    setPairedIconTheme(paired);
+  }
+
   const previewTheme = activePreviewKey ? themeCacheRef.current.get(activePreviewKey) : undefined;
   const previewResult = activePreviewKey ? results?.find((r) => resultKey(r) === activePreviewKey) : undefined;
 
   // A result we've confirmed can't be imported (icon-only theme, legacy
-  // format we don't parse, corrupt vsix, ...) is useless here — this dialog
+  // format we don't parse, corrupt vsix, ...) is useless here — this tab
   // only deals in color themes, so once the background fetch above resolves
   // one to 'failed' it's dropped rather than left as a dead "Use" button.
   const visibleResults = results?.filter((r) => themeCacheRef.current.get(resultKey(r)) !== 'failed');
+
+  const background = chrome.background ?? baselineColorsFor(mode)['editor.background'];
+  const foreground = chrome.foreground ?? baselineColorsFor(mode)['editor.foreground'];
 
   return (
     <div
@@ -270,7 +376,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     >
       <div
         ref={dialogRef}
-        className={tab === 'search' ? 'import-dialog import-dialog-wide' : 'import-dialog'}
+        className={tab === 'upload' ? 'import-dialog' : 'import-dialog import-dialog-wide'}
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-dialog-title"
@@ -303,10 +409,19 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
           >
             <SearchIcon size={13} /> Search Marketplace
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'icon-theme'}
+            className={tab === 'icon-theme' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
+            onClick={() => setTab('icon-theme')}
+          >
+            <FolderIcon size={13} /> Icon Theme
+          </button>
         </div>
 
         <div className="import-dialog-body">
-          {tab === 'upload' ? (
+          {tab === 'upload' && (
             <div className="import-upload-pane">
               <input
                 ref={fileInputRef}
@@ -328,7 +443,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
               </button>
               {uploadError && <div className="import-dialog-error">{uploadError}</div>}
             </div>
-          ) : (
+          )}
+
+          {tab === 'search' && (
             <div className="import-search-pane">
               <form className="marketplace-search-form" onSubmit={handleSearchSubmit}>
                 <SearchIcon size={14} className="marketplace-search-icon" />
@@ -438,6 +555,125 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
               </div>
             </div>
           )}
+
+          {tab === 'icon-theme' && (
+            <div className="import-search-pane">
+              <p className="field-hint icon-theme-intro">
+                Pair an existing Marketplace icon theme with{' '}
+                {pairedIconTheme ? (
+                  <>
+                    your current pairing, <b>{pairedIconTheme.displayName}</b>,
+                  </>
+                ) : (
+                  'this color theme'
+                )}{' '}
+                — it installs alongside your export as a recommended extension, never copied in.
+              </p>
+              <form className="marketplace-search-form" onSubmit={(e) => e.preventDefault()}>
+                <SearchIcon size={14} className="marketplace-search-icon" />
+                <input
+                  type="text"
+                  className="marketplace-search-input"
+                  placeholder='Search icon themes — e.g. "material", "seti"'
+                  value={iconQuery}
+                  onChange={(e) => handleIconQueryChange(e.target.value)}
+                  aria-label="Search the VS Code Marketplace for an icon theme"
+                  autoFocus
+                />
+              </form>
+
+              <div className="marketplace-search-layout">
+                <div className="marketplace-results">
+                  {isIconSearching && <div className="marketplace-status">Searching…</div>}
+                  {!isIconSearching && iconSearchError && (
+                    <div className="marketplace-status marketplace-status-error">{iconSearchError}</div>
+                  )}
+                  {!isIconSearching && !iconSearchError && iconResults !== null && iconResults.length === 0 && (
+                    <div className="marketplace-status">No icon themes found for "{iconQuery.trim()}".</div>
+                  )}
+                  {!isIconSearching && !iconSearchError && iconResults === null && (
+                    <div className="marketplace-status">Search for an icon theme by name, e.g. "material" or "seti".</div>
+                  )}
+                  {!isIconSearching &&
+                    !iconSearchError &&
+                    iconResults?.map((r) => {
+                      const key = iconResultKey(r);
+                      const showIcon = r.iconUrl && !brokenIconThemeIcons.has(key);
+                      return (
+                        <div
+                          className={key === activeIconPreviewKey ? 'marketplace-result marketplace-result-active' : 'marketplace-result'}
+                          key={key}
+                          onMouseEnter={() => setIconHoveredKey(key)}
+                          onMouseLeave={() => setIconHoveredKey((k) => (k === key ? null : k))}
+                          onClick={() => setIconPinnedKey(key)}
+                        >
+                          {showIcon ? (
+                            <img
+                              src={r.iconUrl!}
+                              alt=""
+                              className="marketplace-result-icon"
+                              loading="lazy"
+                              onError={() => setBrokenIconThemeIcons((prev) => new Set(prev).add(key))}
+                            />
+                          ) : (
+                            <div className="marketplace-result-icon marketplace-result-icon-placeholder" aria-hidden="true" />
+                          )}
+                          <div className="marketplace-result-text">
+                            <div className="marketplace-result-name">
+                              {r.displayName} <span className="marketplace-result-publisher">by {r.publisherDisplayName}</span>
+                            </div>
+                            {r.shortDescription && <div className="marketplace-result-desc">{r.shortDescription}</div>}
+                            {r.installCount !== null && (
+                              <div className="marketplace-result-installs">{formatInstallCount(r.installCount)} installs</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="marketplace-use-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePairIconTheme(r);
+                            }}
+                          >
+                            Pair
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="marketplace-preview-pane">
+                  {!activeIconPreviewKey && (
+                    <div className="theme-preview-empty">Hover or tap a theme to preview its real icons here.</div>
+                  )}
+                  {activeIconPreviewKey &&
+                    (() => {
+                      const cached = iconPreviewCacheRef.current.get(activeIconPreviewKey);
+                      if (!cached || cached === 'loading') return <div className="theme-preview-empty">Loading real icons…</div>;
+                      if (cached === 'failed') return <div className="theme-preview-empty">Couldn't load a preview for this icon theme.</div>;
+                      return (
+                        <>
+                          <div className="marketplace-preview-title">{activeIconResult?.displayName}</div>
+                          <IconThemeExplorerPreview assets={cached} background={background} foreground={foreground} />
+                        </>
+                      );
+                    })()}
+                </div>
+              </div>
+
+              {pairedIconTheme && (
+                <div className="icon-theme-current-pairing">
+                  Currently paired:{' '}
+                  <a href={marketplaceItemUrl(pairedIconTheme.publisherName, pairedIconTheme.extensionName)} target="_blank" rel="noreferrer noopener">
+                    {pairedIconTheme.displayName}
+                  </a>
+                  <button type="button" className="remove-assignment-btn" onClick={() => setPairedIconTheme(null)} title="Remove pairing">
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -454,9 +690,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
           confirmLabel="Import & replace"
           danger
           onConfirm={() => {
-            const { theme, source } = pendingImport;
+            const { theme, closeAfter } = pendingImport;
             setPendingImport(null);
-            finishImport(theme, source);
+            finishImport(theme, closeAfter);
           }}
           onCancel={() => setPendingImport(null)}
         />

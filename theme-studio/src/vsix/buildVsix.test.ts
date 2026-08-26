@@ -1,6 +1,14 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildExportSlug, buildVsixBlob, slugify } from './buildVsix'
+import { buildExportSlug, buildVsixBlob, composeAutoThemeName, slugify } from './buildVsix'
+
+const MATERIAL_ICON_THEME = {
+  publisherName: 'pkief',
+  extensionName: 'material-icon-theme',
+  displayName: 'Material Icon Theme',
+  iconUrl: null,
+  vsixUrl: null,
+}
 
 async function unzip(blob: Blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -38,6 +46,7 @@ describe('buildExportSlug', () => {
         extensionName: 'material-icon-theme',
         displayName: 'Material Icon Theme',
         iconUrl: null,
+        vsixUrl: null,
       }),
     ).toBe('vsts-midnight-material-icon-theme')
   })
@@ -48,6 +57,34 @@ describe('buildExportSlug', () => {
 
   it('does not double the vsts prefix when the theme name already starts with it (the app default)', () => {
     expect(buildExportSlug('VSTS My Theme')).toBe('vsts-my-theme')
+  })
+})
+
+describe('composeAutoThemeName', () => {
+  it('is just "vsts" when neither a product theme nor an icon theme is selected', () => {
+    expect(composeAutoThemeName(null)).toBe('vsts')
+    expect(composeAutoThemeName(null, null)).toBe('vsts')
+  })
+
+  it('adds the slugified product theme name when one is selected', () => {
+    expect(composeAutoThemeName('Midnight')).toBe('vsts-midnight')
+  })
+
+  it('adds the paired icon theme even with no product theme selected', () => {
+    expect(composeAutoThemeName(null, MATERIAL_ICON_THEME)).toBe('vsts-material-icon-theme')
+  })
+
+  it('combines both when both are selected', () => {
+    expect(composeAutoThemeName('Midnight', MATERIAL_ICON_THEME)).toBe('vsts-midnight-material-icon-theme')
+  })
+
+  it('never doubles the icon segment when fed back through buildExportSlug for the raw product name (not the composed string)', () => {
+    // This is the exact pairing ExportPanel.tsx relies on: compose the
+    // display value from the raw name, and separately slug the same raw
+    // name for export — never chain compose -> slug on its own output.
+    const composed = composeAutoThemeName('Midnight', MATERIAL_ICON_THEME)
+    expect(composed).toBe('vsts-midnight-material-icon-theme')
+    expect(buildExportSlug('Midnight', MATERIAL_ICON_THEME)).toBe(composed)
   })
 })
 
@@ -128,6 +165,7 @@ describe('buildVsixBlob', () => {
       extensionName: 'material-icon-theme',
       displayName: 'Material Icon Theme',
       iconUrl: null,
+      vsixUrl: null,
     })
     const files = await unzip(blob)
     const pkg = JSON.parse(strFromU8(files['extension/package.json']))

@@ -33,7 +33,7 @@ const STEPS: TourStep[] = [
   {
     targetId: 'tour-search',
     title: 'Or fork one from the Marketplace',
-    body: 'Search real, published VS Code themes and start editing a copy immediately — no download, no account.',
+    body: 'Search real, published VS Code themes and start editing a copy immediately — no download, no account. The same dialog has an Icon Theme tab to pair a matching file icon theme, too.',
   },
   {
     targetId: 'tour-regenerate',

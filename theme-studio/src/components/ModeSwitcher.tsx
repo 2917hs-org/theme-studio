@@ -82,31 +82,33 @@ export function ModeSwitcher() {
       </div>
 
       <div className="field-label">
-        Background color
-        <div className="color-controls">
-          <input
-            type="color"
-            className="color-native-input"
-            value={defaultBackgroundFor(mode, chrome)}
-            onChange={(e) => commit(e.target.value)}
-            title="OS color picker (also supports the eyedropper tool in some browsers)"
-            aria-label={`Pick the ${mode} mode code snippet's background color`}
-          />
-          <input
-            type="text"
-            className="color-text-input"
-            placeholder="#rrggbb, rgb(), or hsl()"
-            value={draft}
-            onChange={(e) => handleDraftChange(e.target.value)}
-            onBlur={handleDraftFinish}
-            onKeyDown={(e) => e.key === 'Enter' && handleDraftFinish()}
-            aria-label={`Type a hex, rgb(), or hsl() background color for ${mode} mode`}
-          />
-          {chrome.background && (
-            <button className="clear-color-btn" onClick={() => setChrome(mode, { background: undefined })}>
-              Reset
-            </button>
-          )}
+        <div className="field-label-row">
+          Background color
+          <div className="color-controls">
+            <input
+              type="color"
+              className="color-native-input"
+              value={defaultBackgroundFor(mode, chrome)}
+              onChange={(e) => commit(e.target.value)}
+              title="OS color picker (also supports the eyedropper tool in some browsers)"
+              aria-label={`Pick the ${mode} mode code snippet's background color`}
+            />
+            <input
+              type="text"
+              className="color-text-input"
+              placeholder="#rrggbb, rgb(), or hsl()"
+              value={draft}
+              onChange={(e) => handleDraftChange(e.target.value)}
+              onBlur={handleDraftFinish}
+              onKeyDown={(e) => e.key === 'Enter' && handleDraftFinish()}
+              aria-label={`Type a hex, rgb(), or hsl() background color for ${mode} mode`}
+            />
+            {chrome.background && (
+              <button className="clear-color-btn" onClick={() => setChrome(mode, { background: undefined })}>
+                Reset
+              </button>
+            )}
+          </div>
         </div>
         <span className="field-hint">
           The code snippet's own background — separate from your OS/browser theme. Picking a dark color switches the
