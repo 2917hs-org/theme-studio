@@ -191,8 +191,9 @@ describe('ImportThemeDialog — search tab', () => {
 
     await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1))
     expect(fetchMarketplaceVsixMock).toHaveBeenCalledWith(result)
-    expect(onClose).toHaveBeenCalledTimes(1)
-    // A Marketplace import resets the export name to the default rather than keeping "Dracula Official".
+    // A Marketplace "Use" keeps the dialog open — unlike a file upload —
+    // so you can still switch to the Icon Theme tab and pair one next.
+    expect(onClose).not.toHaveBeenCalled()
     expect(onImported.mock.calls[0][0]).toContain('Dracula Official')
   })
 
