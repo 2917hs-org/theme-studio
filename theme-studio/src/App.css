@@ -427,31 +427,11 @@ button {
   color: var(--text-strong);
 }
 
-.regenerate-btn {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: var(--accent-text);
-  border: 1px solid var(--text-dim);
-  border-radius: var(--radius-sm);
-  padding: 6px 11px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.regenerate-btn:hover {
-  background: var(--bg-raised);
-  border-color: var(--hover-border);
-}
-
-.regenerate-btn svg {
+#tour-regenerate svg {
   transition: transform 400ms ease;
 }
 
-.regenerate-btn:active svg {
+#tour-regenerate:active svg {
   transform: rotate(-140deg);
 }
 
@@ -461,21 +441,35 @@ button {
   flex: 1;
   display: flex;
   min-height: 0;
-  /* editor-pane's max-width stops it (and, via the panels' combined width,
-     the whole layout) from growing indefinitely on very wide screens —
-     centering means any space left over past that cap balances evenly on
-     both sides instead of collecting as a single dead strip on one edge. */
+  /* editor-column's max-width stops it (and, via the panels' combined
+     width, the whole layout) from growing indefinitely on very wide
+     screens — centering means any space left over past that cap balances
+     evenly on both sides instead of collecting as a single dead strip on
+     one edge. */
   justify-content: center;
+}
+
+/* Quick Start, the language picker, and the editor all live in one column
+   now — side-pane (a flex sibling here) stretches to match this column's
+   full height by default, so it starts at the very top next to Quick
+   Start instead of only alongside the editor. */
+.editor-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Most code lines fall well short of this — an uncapped column just
+     leaves a growing strip of blank background on wide screens instead of
+     giving that room to the panel that can actually use it. */
+  max-width: 1040px;
 }
 
 .editor-pane {
   position: relative;
   flex: 1;
   min-width: 0;
-  /* Most code lines fall well short of this — an uncapped editor pane just
-     leaves a growing strip of blank background on wide screens instead of
-     giving that room to the panel that can actually use it. */
-  max-width: 1040px;
+  min-height: 0;
 }
 
 .editor-toolbar {
@@ -2293,10 +2287,15 @@ button {
     flex-direction: column;
     overflow-y: auto;
     /* The centering on the desktop side-by-side layout is a horizontal
-       concern (balancing leftover width past editor-pane's max-width) —
+       concern (balancing leftover width past editor-column's max-width) —
        flipped to a column, that same property would center short content
        vertically instead, which isn't wanted here. */
     justify-content: flex-start;
+  }
+
+  .editor-column {
+    flex: none;
+    max-width: none;
   }
 
   .editor-pane {
@@ -2499,12 +2498,6 @@ button {
 
   .language-picker {
     padding: 8px 14px;
-  }
-
-  .regenerate-btn {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
   }
 
   .editor-pane {
