@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { buildVsixBlobSync, composeAutoThemeName, downloadBlob, slugify } from '../vsix/buildVsix';
-import { CheckCircleIcon, ExportIcon } from './icons';
+import { detectOS, installCommandFor } from '../vsix/installCommand';
+import { track } from '../analytics/track';
+import { CheckCircleIcon, CopyIcon, ExportIcon } from './icons';
 
 const MODES: ThemeMode[] = ['dark', 'light'];
 
@@ -22,6 +24,16 @@ export function ExportPanel() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const exportTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The real downloaded filename from the most recent successful export —
+  // drives the install-command block below. Kept separate from `justExported`
+  // (which is a brief "Downloaded" confirmation) since the command should
+  // stay visible well after that fades, as long as it still matches the last
+  // file actually saved.
+  const [lastExportedFilename, setLastExportedFilename] = useState<string | null>(null);
+  const [justCopiedCommand, setJustCopiedCommand] = useState(false);
+  const [copyCommandError, setCopyCommandError] = useState(false);
+  // The browser doesn't change mid-session, so this only ever needs computing once.
+  const [detectedOS] = useState(detectOS);
 
   useEffect(
     () => () => {
@@ -105,17 +117,41 @@ export function ExportPanel() {
   function handleExport() {
     setExportError(null);
     setIsExporting(true);
+    track('export_clicked');
     try {
       const { blob, filename } = buildCurrentVsix();
       downloadBlob(blob, filename);
       setJustExported(true);
+      setLastExportedFilename(filename);
+      setJustCopiedCommand(false);
+      setCopyCommandError(false);
+      // Only fires once the blob actually built and the download call ran —
+      // never from the click alone, so a broken export doesn't inflate the
+      // success count.
+      track('export_completed');
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
       exportTimeoutRef.current = setTimeout(() => setJustExported(false), 2800);
     } catch (err) {
       console.error('Failed to generate VSIX:', err);
       setExportError('Something went wrong generating the file. Please try again.');
+      track('export_failed');
     } finally {
       setIsExporting(false);
+    }
+  }
+
+  async function handleCopyInstallCommand() {
+    if (!lastExportedFilename) return;
+    const command = installCommandFor(detectedOS, lastExportedFilename);
+    try {
+      await navigator.clipboard.writeText(command);
+      setJustCopiedCommand(true);
+      setCopyCommandError(false);
+      setTimeout(() => setJustCopiedCommand(false), 2000);
+    } catch {
+      // Clipboard permission denied/unavailable — the command is already
+      // shown as plain, selectable text below, so nothing is actually lost.
+      setCopyCommandError(true);
     }
   }
 
@@ -197,6 +233,39 @@ export function ExportPanel() {
       </div>
 
       {exportError && <div className="inspector-error">{exportError}</div>}
+
+      {lastExportedFilename && (
+        <div className="install-command-block">
+          <div className="install-command-label">Or install it with one command</div>
+          <div className="install-command-row">
+            <code className="install-command-code">{installCommandFor(detectedOS, lastExportedFilename)}</code>
+            <button
+              type="button"
+              className="install-command-copy-btn"
+              onClick={handleCopyInstallCommand}
+              title="Copy install command"
+              aria-label="Copy install command"
+            >
+              {justCopiedCommand ? <CheckCircleIcon size={13} /> : <CopyIcon size={13} />}
+            </button>
+          </div>
+          {copyCommandError && (
+            <span className="field-hint field-hint-error">Couldn't copy — select the command above instead.</span>
+          )}
+          <span className="field-hint">
+            Assumes your browser saved the file to this OS's default Downloads folder — if yours is different, adjust
+            the path. Requires the <span className="export-filename">code</span> CLI on PATH —{' '}
+            <a
+              href="https://code.visualstudio.com/docs/configure/command-line#_launching-from-command-line"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              set it up here
+            </a>{' '}
+            if this doesn't run.
+          </span>
+        </div>
+      )}
     </>
   );
 }

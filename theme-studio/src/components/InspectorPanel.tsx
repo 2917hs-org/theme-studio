@@ -4,6 +4,7 @@ import { useAssignments } from '../store/useAssignments';
 import { parseColorToHex, contrastRatio } from '../theme/colorParse';
 import { baselineColorsFor, defaultForegroundFor } from '../theme/baseline';
 import { quickPalette, widePalette } from '../theme/palette';
+import { track } from '../analytics/track';
 import { CursorClickIcon, BanIcon, ChevronIcon } from './icons';
 import { ColorPicker } from './ColorPicker';
 
@@ -60,6 +61,11 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
     }
     setError(null);
     setColor(scope!, hex);
+    // No color value in the payload — a user's palette is their own
+    // creative work, not telemetry. Covers the ColorPicker widget, the
+    // native OS picker, and every quick/recent/wide swatch — handleDraftChange
+    // below covers the one remaining path (typing a hex directly).
+    track('scope_color_assigned');
   }
 
   // Applies the moment what's typed becomes a valid color, instead of
@@ -73,6 +79,7 @@ export function InspectorPanel({ selection }: InspectorPanelProps) {
     if (hex) {
       setError(null);
       setColor(scope!, hex);
+      track('scope_color_assigned');
     }
   }
 

@@ -3,6 +3,7 @@ import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { defaultBackgroundFor } from '../theme/baseline';
 import { parseColorToHex, relativeLuminance } from '../theme/colorParse';
+import { track } from '../analytics/track';
 import { MoonIcon, SunIcon } from './icons';
 
 const MODES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
@@ -70,7 +71,10 @@ export function ModeSwitcher() {
                 role="radio"
                 aria-checked={mode === m.value}
                 className={mode === m.value ? 'mode-toggle-btn mode-toggle-btn-active' : 'mode-toggle-btn'}
-                onClick={() => setMode(m.value)}
+                onClick={() => {
+                  setMode(m.value);
+                  track('mode_toggled', { mode: m.value });
+                }}
               >
                 {m.icon} {m.label}
                 {count > 0 && <span className="mode-toggle-count">{count}</span>}

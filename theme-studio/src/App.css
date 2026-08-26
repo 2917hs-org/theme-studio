@@ -1610,6 +1610,63 @@ button {
   line-height: 1.4;
 }
 
+/* ---------- One-click install command ---------- */
+
+.install-command-block {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.install-command-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.install-command-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.install-command-code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  user-select: all;
+}
+
+.install-command-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.install-command-copy-btn:hover {
+  background: var(--hover-bg);
+}
+
 /* ---------- Share panel ---------- */
 
 .share-actions {
@@ -1638,6 +1695,44 @@ button {
 
 .share-btn:hover {
   background: var(--hover-bg);
+}
+
+.share-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.share-link-btn:hover {
+  background: var(--hover-bg);
+}
+
+.share-link-fallback {
+  margin-top: 6px;
+  width: 100%;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
 }
 
 /* ---------- Confirm dialog ---------- */

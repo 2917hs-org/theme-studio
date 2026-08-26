@@ -15,12 +15,16 @@ import {
 } from '../marketplace/searchMarketplace';
 import { loadIconThemePreview, IconThemePreviewError, type IconThemePreviewAssets } from '../theme/iconThemeAssets';
 import { baselineColorsFor } from '../theme/baseline';
+import { track } from '../analytics/track';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ThemePreview } from './ThemePreview';
 import { IconThemeExplorerPreview } from './IconThemeExplorerPreview';
 import { UploadIcon, SearchIcon, CloseIcon, FolderIcon } from './icons';
 
 export type ImportTab = 'upload' | 'search' | 'icon-theme';
+
+/** Where a parsed theme came from — distinguishes the `theme_imported` vs `marketplace_theme_forked` analytics events fired once it actually lands (see finishImport). */
+type ImportSource = 'upload' | 'marketplace';
 
 interface ImportThemeDialogProps {
   onClose: () => void;
@@ -66,7 +70,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   // equivalent — see handlePairIconTheme below. `closeAfter` rides along so
   // the confirm dialog (deferred by a render or more) still closes/keeps
   // open exactly as the original action intended.
-  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; closeAfter: boolean } | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; closeAfter: boolean; source: ImportSource } | null>(
+    null,
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFile, setIsImportingFile] = useState(false);
@@ -220,12 +226,13 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     });
   }
 
-  function finishImport(theme: ImportedTheme, closeAfter: boolean) {
+  function finishImport(theme: ImportedTheme, closeAfter: boolean, source: ImportSource) {
     // The imported theme's own name becomes `productThemeName`, not
     // `themeName` directly — ExportPanel's auto-fill picks it up from
     // there (see composeAutoThemeName), so a custom name the user already
     // typed into the Theme name box isn't silently overwritten.
     importTheme(theme);
+    track(source === 'upload' ? 'theme_imported' : 'marketplace_theme_forked');
     onImported(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
     if (closeAfter) onClose();
   }
@@ -234,9 +241,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   // doesn't preclude also pairing an icon theme in the next tab, so the
   // dialog stays open rather than forcing a reopen for that second step.
   // Uploading a file has no such follow-up, so it still closes on success.
-  function handleParsedTheme(theme: ImportedTheme, closeAfter: boolean) {
-    if (hasExistingWork()) setPendingImport({ theme, closeAfter });
-    else finishImport(theme, closeAfter);
+  function handleParsedTheme(theme: ImportedTheme, closeAfter: boolean, source: ImportSource) {
+    if (hasExistingWork()) setPendingImport({ theme, closeAfter, source });
+    else finishImport(theme, closeAfter, source);
   }
 
   async function handleFileChosen(e: ChangeEvent<HTMLInputElement>) {
@@ -247,7 +254,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     setIsImportingFile(true);
     try {
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, true);
+      handleParsedTheme(theme, true, 'upload');
     } catch (err) {
       setUploadError(err instanceof ImportError ? err.message : 'Could not import this file.');
     } finally {
@@ -301,7 +308,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     try {
       const file = await fetchMarketplaceVsix(result);
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, false);
+      handleParsedTheme(theme, false, 'marketplace');
     } catch (err) {
       setSearchError(
         err instanceof MarketplaceError || err instanceof ImportError ? err.message : `Could not import "${result.displayName}".`,
@@ -353,6 +360,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
       vsixUrl: result.vsixUrl,
     };
     setPairedIconTheme(paired);
+    track('icon_theme_paired');
   }
 
   const previewTheme = activePreviewKey ? themeCacheRef.current.get(activePreviewKey) : undefined;
@@ -690,9 +698,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
           confirmLabel="Import & replace"
           danger
           onConfirm={() => {
-            const { theme, closeAfter } = pendingImport;
+            const { theme, closeAfter, source } = pendingImport;
             setPendingImport(null);
-            finishImport(theme, closeAfter);
+            finishImport(theme, closeAfter, source);
           }}
           onCancel={() => setPendingImport(null)}
         />

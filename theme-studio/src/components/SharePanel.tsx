@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react';
-import { LinkedInIcon, XIcon, RedditIcon, HackerNewsIcon } from './icons';
+import { useState, type ReactNode } from 'react';
+import { useAssignments } from '../store/useAssignments';
+import { buildShareLink } from '../share/shareLink';
+import { CheckCircleIcon, CopyIcon, LinkedInIcon, XIcon, RedditIcon, HackerNewsIcon } from './icons';
 
 const SHARE_TITLE = 'VS Code Theme Studio';
 const SHARE_TEXT =
@@ -39,11 +41,70 @@ const SHARE_TARGETS: Array<{ label: string; icon: ReactNode; hrefFor: (url: stri
   },
 ];
 
-export function SharePanel() {
+interface SharePanelProps {
+  /** Reports a human-readable confirmation once the link is copied, so the caller can surface it (e.g. as a toast) — mirrors PresetPicker's onImported/onApplied. */
+  onCopied?: (message: string) => void;
+}
+
+export function SharePanel({ onCopied }: SharePanelProps) {
+  const { mode, themeName, productThemeName, assignmentsFor, chromeFor, pairedIconTheme } = useAssignments();
   const url = siteUrl();
+  const [justCopied, setJustCopied] = useState(false);
+  // Only shown if the clipboard write itself fails (permission denied,
+  // unsupported browser) — the link is still right there to select by hand,
+  // never silently lost.
+  const [copyFallbackUrl, setCopyFallbackUrl] = useState<string | null>(null);
+
+  // Serializes exactly what's on screen right now — every scope color and
+  // chrome override for both modes, the theme name, and the paired icon
+  // theme — so opening the link elsewhere renders an identical theme. See
+  // src/share/shareLink.ts for the compact, versioned encoding.
+  function currentThemeShareLink(): string {
+    return buildShareLink({
+      mode,
+      themeName,
+      productThemeName,
+      assignments: {
+        dark: [...assignmentsFor('dark').entries()],
+        light: [...assignmentsFor('light').entries()],
+      },
+      chrome: { dark: chromeFor('dark'), light: chromeFor('light') },
+      pairedIconTheme,
+    });
+  }
+
+  async function handleCopyLink() {
+    const link = currentThemeShareLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyFallbackUrl(null);
+      setJustCopied(true);
+      onCopied?.('Link copied — anyone who opens it sees this exact theme.');
+      setTimeout(() => setJustCopied(false), 2400);
+    } catch {
+      setCopyFallbackUrl(link);
+    }
+  }
 
   return (
     <>
+      <div className="share-link-row">
+        <button type="button" className="share-link-btn" onClick={handleCopyLink}>
+          {justCopied ? <CheckCircleIcon size={14} /> : <CopyIcon size={13} />}
+          {justCopied ? 'Copied!' : 'Copy link to this theme'}
+        </button>
+      </div>
+      {copyFallbackUrl && (
+        <input
+          type="text"
+          readOnly
+          className="share-link-fallback"
+          value={copyFallbackUrl}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="Link to this theme — select and copy manually"
+        />
+      )}
+
       <div className="share-actions">
         {SHARE_TARGETS.map((target) => (
           <a
@@ -59,7 +120,10 @@ export function SharePanel() {
           </a>
         ))}
       </div>
-      <div className="export-hint">Opens a pre-filled post on each site — nothing is sent from here.</div>
+      <div className="export-hint">
+        "Copy link" shares this exact theme. The icons above just open a pre-filled post about the app — nothing is
+        sent from here.
+      </div>
     </>
   );
 }
