@@ -80,7 +80,7 @@ export function ExportPanel() {
   // Synchronous end to end — Safari only honors the anchor `download`
   // attribute on a blob: URL when the click that triggers it runs with no
   // async gap beforehand, so nothing here may sit behind an `await`.
-  function buildCurrentVsix(): { blob: Blob; filename: string } {
+  function buildCurrentVsix(): { blob: Blob; bytes: Uint8Array; filename: string } {
     const variants = exportModes.map((m) => ({ mode: m, assignments: assignmentsFor(m), chrome: chromeFor(m) }));
     // The *friendly* label VS Code shows inside the theme itself
     // (package.json displayName, the picker entry) — deliberately separate
@@ -88,7 +88,7 @@ export function ExportPanel() {
     // product name/'vsts' the way it always has; unlike the filename, nothing
     // requires this to look like a slug.
     const productComponent = (themeNameAutoTracked ? productThemeName : trimmedThemeName) || 'vsts';
-    const blob = buildVsixBlobSync(productComponent, variants, pairedIconTheme);
+    const { blob, bytes } = buildVsixBlobSync(productComponent, variants, pairedIconTheme);
     // Slugifies the box's *own* text directly, rather than re-deriving a
     // name from productThemeName/pairedIconTheme the way this used to —
     // that second derivation is exactly what let a custom-typed box value
@@ -99,15 +99,15 @@ export function ExportPanel() {
     // the box, always (see the "Downloads as…" hint below, which shows the
     // exact same computation).
     const filename = `${slugify(trimmedThemeName)}.vsix`;
-    return { blob, filename };
+    return { blob, bytes, filename };
   }
 
   function handleExport() {
     setExportError(null);
     setIsExporting(true);
     try {
-      const { blob, filename } = buildCurrentVsix();
-      downloadBlob(blob, filename);
+      const { blob, bytes, filename } = buildCurrentVsix();
+      downloadBlob({ blob, bytes }, filename);
       setJustExported(true);
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
       exportTimeoutRef.current = setTimeout(() => setJustExported(false), 2800);
