@@ -447,11 +447,11 @@ button {
   color: var(--text-strong);
 }
 
-#tour-regenerate svg {
+#code-regenerate svg {
   transition: transform 400ms ease;
 }
 
-#tour-regenerate:active svg {
+#code-regenerate:active svg {
   transform: rotate(-140deg);
 }
 

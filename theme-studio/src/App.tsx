@@ -194,7 +194,7 @@ function AppInner() {
           <div id="tour-editor" className="editor-pane">
             <div className="editor-toolbar">
               <button
-                id="tour-regenerate"
+                id="code-regenerate"
                 className="editor-toolbar-btn"
                 onClick={handleRegenerate}
                 title="Generate a new code sample — your color assignments are kept"
