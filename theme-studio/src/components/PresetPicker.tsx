@@ -8,9 +8,10 @@ import { SearchIcon, UploadIcon } from './icons';
 import type { LanguageDef } from '../data/languages';
 
 // Pulls in vscode-textmate + jsonc-parser (grammar tokenizing for the
-// Marketplace preview, plus theme-file parsing) — neither is needed until
-// someone actually opens Upload/Search, so keep it out of the initial
-// bundle the same way CodeEditor is split out in App.tsx.
+// Marketplace preview, plus theme-file parsing, plus the icon-theme tab's
+// fflate unzip) — none of it is needed until someone actually opens the
+// dialog, so keep it out of the initial bundle the same way CodeEditor is
+// split out in App.tsx.
 const ImportThemeDialog = lazy(() => import('./ImportThemeDialog').then((m) => ({ default: m.ImportThemeDialog })));
 
 interface PresetPickerProps {
@@ -22,7 +23,7 @@ interface PresetPickerProps {
 }
 
 export function PresetPicker({ onImported, language, code }: PresetPickerProps) {
-  const { setMode, chromeFor, assignmentsFor, setChrome, replaceAssignments } = useAssignments();
+  const { setMode, chromeFor, assignmentsFor, setChrome, replaceAssignments, setProductThemeName } = useAssignments();
   // Which dialog tab to land on — null means the dialog is closed. Two
   // separate buttons below drive this so "Search Marketplace" is its own
   // visible entry point rather than hidden behind "Import theme" first.
@@ -36,6 +37,7 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
 
   function applyPreset(preset: ThemePreset) {
     setMode(preset.mode);
+    setProductThemeName(preset.name);
     setChrome(preset.mode, { background: preset.background, foreground: preset.text });
     // A full clean swap to exactly what this preset defines, not a merge —
     // replaceAssignments drops every scope the mode had before (including
@@ -108,17 +110,17 @@ export function PresetPicker({ onImported, language, code }: PresetPickerProps) 
           title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
         >
           <UploadIcon size={18} />
-          <span className="preset-action-card-label">Upload file</span>
+          <span className="preset-action-card-label">Import</span>
         </button>
         <button
           id="tour-search"
           type="button"
           className="preset-action-card"
           onClick={() => setImportTab('search')}
-          title="Search the VS Code Marketplace for a theme to tweak and export as your own"
+          title="Search the VS Code Marketplace for a theme to tweak and export as your own — also where you pair an icon theme"
         >
           <SearchIcon size={18} />
-          <span className="preset-action-card-label">Search Marketplace</span>
+          <span className="preset-action-card-label">Marketplace</span>
         </button>
       </div>
 

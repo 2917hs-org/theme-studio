@@ -1,48 +1,56 @@
 :root {
-  /* Dark chrome (default) */
-  --bg: #181818;
-  --bg-raised: #1e1e1e;
-  --bg-panel: #202020;
-  --bg-inset: #161616;
-  --border: #2d2d2d;
-  --border-soft: #262626;
-  --text: #d4d4d4;
-  --text-strong: #ffffff;
-  --text-dim: #8a8a8a;
-  /* #949494 on --bg-panel (#202020) is ~5.4:1, clearing WCAG AA's 4.5:1 for
-     body text — the previous #666666 sat at ~2.8:1 for hint/label text that
-     genuinely conveys information (not decorative), so it needed to hold
-     the same bar as --text-dim rather than trade contrast for subtlety. */
-  --text-faint: #949494;
-  --accent: #3b8eea;
-  --accent-hover: #4c9bf0;
-  --accent-soft: #264f78;
-  --accent-text: #9cdcfe;
-  --hover-bg: #2a2a2a;
-  --hover-border: #444444;
-  --overlay-bg: rgba(24, 24, 24, 0.75);
-  --scrollbar-thumb: #3a3a3a;
-  --disabled-bg: #2d2d2d;
-  --disabled-text: #666666;
-  --spinner-track: #444444;
-  --warning-bg: #3a3d1e;
-  --warning-text: #dcdcaa;
-  --warning-strong-bg: #241d16;
-  --warning-strong-text: #a9825e;
-  --danger-bg: #3a2020;
-  --danger-text: #f0a8a0;
-  --danger-text-strong: #f48771;
-  --danger-solid-bg: #7a2b23;
-  --danger-solid-bg-hover: #8a3128;
-  --danger-solid-border: #a3392c;
-  --success-bg: rgba(80, 160, 60, 0.16);
-  --success-text: #b8e6a0;
-  --success-border: rgba(80, 160, 60, 0.35);
-  --toast-bg: #232323;
-  --toast-text: #e4e4e4;
-  --toast-border: #3a3a3a;
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* Dark chrome (default) — GitHub's Primer dark palette (canvas/fg/border/
+     accent tokens), not an ad hoc dark gray scale. --bg and --bg-panel share
+     canvas.default: GitHub separates its sidebars from content with a
+     border, not a shade change, so the border-left already on .side-pane
+     does that job here too. --bg-raised (canvas.overlay) is a touch lighter,
+     for dialogs/popovers that need to read as elevated above the page. */
+  --bg: #0d1117;
+  --bg-raised: #151b23;
+  --bg-panel: #0d1117;
+  --bg-inset: #010409;
+  --border: #30363d;
+  --border-soft: #21262d;
+  --text: #c9d1d9;
+  --text-strong: #f0f6fc;
+  --text-dim: #9198a1;
+  /* fg.subtle — ~4.6:1 on --bg-panel, clearing WCAG AA's 4.5:1 for hint/label
+     text that genuinely conveys information (not decorative). */
+  --text-faint: #7d8590;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --accent-soft: #1c3a5e;
+  --accent-text: #58a6ff;
+  /* GitHub's convention: accent blue marks focus/links/selection; solid
+     call-to-action buttons (Download theme, Confirm, Start tour) get their
+     own green — see btn-primary-bg below and its usages. */
+  --btn-primary-bg: #238636;
+  --btn-primary-hover: #2ea043;
+  --hover-bg: #21262d;
+  --hover-border: #6e7681;
+  --overlay-bg: rgba(13, 17, 23, 0.75);
+  --scrollbar-thumb: #30363d;
+  --disabled-bg: #21262d;
+  --disabled-text: #6e7681;
+  --spinner-track: #30363d;
+  --warning-bg: rgba(187, 128, 9, 0.15);
+  --warning-text: #d29922;
+  --warning-strong-bg: rgba(187, 128, 9, 0.25);
+  --warning-strong-text: #e3b341;
+  --danger-bg: rgba(248, 81, 73, 0.15);
+  --danger-text: #ffa198;
+  --danger-text-strong: #f85149;
+  --danger-solid-bg: #da3633;
+  --danger-solid-bg-hover: #b62324;
+  --danger-solid-border: #f85149;
+  --success-bg: rgba(63, 185, 80, 0.15);
+  --success-text: #3fb950;
+  --success-border: rgba(63, 185, 80, 0.4);
+  --toast-bg: #21262d;
+  --toast-text: #f0f6fc;
+  --toast-border: #30363d;
+  --radius-sm: 6px;
+  --radius-md: 6px;
   --radius-lg: 12px;
   --space-1: 4px;
   --space-2: 8px;
@@ -53,44 +61,47 @@
 }
 
 :root[data-app-theme='light'] {
-  --bg: #f4f4f5;
+  /* GitHub's Primer light palette — same reasoning as the dark block above. */
+  --bg: #ffffff;
   --bg-raised: #ffffff;
   --bg-panel: #ffffff;
-  --bg-inset: #eeeeef;
-  --border: #e2e2e4;
-  --border-soft: #e8e8ea;
-  --text: #26262a;
-  --text-strong: #0a0a0a;
-  --text-dim: #6b6b70;
-  /* Same WCAG AA fix as the dark palette above — #96969b on white was ~2.9:1. */
-  --text-faint: #6f6f74;
+  --bg-inset: #f6f8fa;
+  --border: #d0d7de;
+  --border-soft: #d8dee4;
+  --text: #1f2328;
+  --text-strong: #0e1116;
+  --text-dim: #57606a;
+  /* fg.subtle — ~4.5:1 on white, same AA floor as the dark palette above. */
+  --text-faint: #6e7781;
   --accent: #0969da;
   --accent-hover: #0757ba;
-  --accent-soft: #cfe6ff;
+  --accent-soft: #ddf4ff;
   --accent-text: #0969da;
-  --hover-bg: #ececef;
-  --hover-border: #c9c9cd;
+  --btn-primary-bg: #1f883d;
+  --btn-primary-hover: #1a7f37;
+  --hover-bg: #f3f4f6;
+  --hover-border: #8c959f;
   --overlay-bg: rgba(255, 255, 255, 0.78);
-  --scrollbar-thumb: #cfcfd2;
-  --disabled-bg: #e5e5e7;
-  --disabled-text: #a3a3a8;
-  --spinner-track: #d6d6d9;
-  --warning-bg: #fbf1cf;
-  --warning-text: #6b5410;
-  --warning-strong-bg: #fbeadb;
-  --warning-strong-text: #8a5a1e;
-  --danger-bg: #fceceb;
-  --danger-text: #a3352b;
-  --danger-text-strong: #c0392b;
-  --danger-solid-bg: #c0392b;
-  --danger-solid-bg-hover: #a93226;
-  --danger-solid-border: #922b21;
-  --success-bg: rgba(40, 140, 60, 0.12);
+  --scrollbar-thumb: #d0d7de;
+  --disabled-bg: #eaeef2;
+  --disabled-text: #8c959f;
+  --spinner-track: #d0d7de;
+  --warning-bg: #fff8c5;
+  --warning-text: #9a6700;
+  --warning-strong-bg: #fff1e5;
+  --warning-strong-text: #7d4e00;
+  --danger-bg: #ffebe9;
+  --danger-text: #cf222e;
+  --danger-text-strong: #a40e26;
+  --danger-solid-bg: #cf222e;
+  --danger-solid-bg-hover: #a40e26;
+  --danger-solid-border: #cf222e;
+  --success-bg: #dafbe1;
   --success-text: #1a7f37;
-  --success-border: rgba(40, 140, 60, 0.35);
-  --toast-bg: #292929;
-  --toast-text: #f2f2f2;
-  --toast-border: #3d3d3d;
+  --success-border: rgba(26, 127, 55, 0.35);
+  --toast-bg: #24292f;
+  --toast-text: #f0f6fc;
+  --toast-border: #32383f;
 }
 
 * {
@@ -105,7 +116,7 @@ html, body, #root {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background var(--transition), color var(--transition);
 }
@@ -139,10 +150,18 @@ button {
 }
 
 /* ---------- Top bar ---------- */
+/* Styled after GitHub's global header — the near-black bar at the very top
+   of every GitHub page, which stays dark regardless of the light/dark
+   setting of the content underneath it. It's deliberately NOT built from
+   the --bg/--text tokens above (those flip with the Dark/Light mode
+   you're actively coloring): the header is chrome about the app itself,
+   not part of the theme being designed, so it stays constant either way —
+   the same reason GitHub's own header doesn't follow a repo's theme. */
 
 .app-topbar {
   padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
+  background: #151b23;
+  border-bottom: 1px solid #30363d;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -165,21 +184,22 @@ button {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  color: #f0f6fc;
 }
 
 .app-subtitle {
   margin: 0;
   font-size: 11.5px;
-  color: var(--text-dim);
+  color: #9198a1;
   margin-top: 1px;
 }
 
 .app-progress-badge {
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--success-text);
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.15);
+  border: 1px solid rgba(63, 185, 80, 0.4);
   border-radius: 999px;
   padding: 4px 11px;
   white-space: nowrap;
@@ -196,8 +216,8 @@ button {
   align-items: center;
   gap: 5px;
   background: transparent;
-  color: var(--text-dim);
-  border: 1px solid var(--text-dim);
+  color: #c9d1d9;
+  border: 1px solid #30363d;
   border-radius: var(--radius-sm);
   padding: 5px 10px;
   font-size: 11.5px;
@@ -208,9 +228,9 @@ button {
 }
 
 .reset-app-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--hover-border);
-  color: var(--text);
+  background: #21262d;
+  border-color: #6e7681;
+  color: #f0f6fc;
 }
 
 .mode-toggle {
@@ -427,31 +447,11 @@ button {
   color: var(--text-strong);
 }
 
-.regenerate-btn {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: var(--accent-text);
-  border: 1px solid var(--text-dim);
-  border-radius: var(--radius-sm);
-  padding: 6px 11px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.regenerate-btn:hover {
-  background: var(--bg-raised);
-  border-color: var(--hover-border);
-}
-
-.regenerate-btn svg {
+#tour-regenerate svg {
   transition: transform 400ms ease;
 }
 
-.regenerate-btn:active svg {
+#tour-regenerate:active svg {
   transform: rotate(-140deg);
 }
 
@@ -461,21 +461,35 @@ button {
   flex: 1;
   display: flex;
   min-height: 0;
-  /* editor-pane's max-width stops it (and, via the panels' combined width,
-     the whole layout) from growing indefinitely on very wide screens —
-     centering means any space left over past that cap balances evenly on
-     both sides instead of collecting as a single dead strip on one edge. */
+  /* editor-column's max-width stops it (and, via the panels' combined
+     width, the whole layout) from growing indefinitely on very wide
+     screens — centering means any space left over past that cap balances
+     evenly on both sides instead of collecting as a single dead strip on
+     one edge. */
   justify-content: center;
+}
+
+/* Quick Start, the language picker, and the editor all live in one column
+   now — side-pane (a flex sibling here) stretches to match this column's
+   full height by default, so it starts at the very top next to Quick
+   Start instead of only alongside the editor. */
+.editor-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Most code lines fall well short of this — an uncapped column just
+     leaves a growing strip of blank background on wide screens instead of
+     giving that room to the panel that can actually use it. */
+  max-width: 1040px;
 }
 
 .editor-pane {
   position: relative;
   flex: 1;
   min-width: 0;
-  /* Most code lines fall well short of this — an uncapped editor pane just
-     leaves a growing strip of blank background on wide screens instead of
-     giving that room to the panel that can actually use it. */
-  max-width: 1040px;
+  min-height: 0;
 }
 
 .editor-toolbar {
@@ -577,7 +591,7 @@ button {
 }
 
 .editor-retry-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -588,7 +602,7 @@ button {
 }
 
 .editor-retry-btn:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 @keyframes spin {
@@ -639,6 +653,39 @@ button {
 
 .pinned-controls .field-label:last-child {
   margin-bottom: 0;
+}
+
+/* Export and Share sit below the collapsible sections, always expanded —
+   neither is optional exploration the way Inspect/Assigned colors are, so
+   hiding them behind a toggle just adds a click. The sticky position keeps
+   this reachable without scrolling once the column's content grows past
+   the viewport. It intentionally does NOT force itself to the visual
+   bottom of a short column (no `margin-top: auto`) — on a tall viewport
+   with little else open, that used to strand a few hundred pixels of dead
+   background between "Assigned colors" and here, which read as broken
+   rather than "anchored." Sitting right after the last section, with any
+   leftover space trailing below it, looks intentional in every state. */
+.pinned-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  flex: none;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+}
+
+.pinned-footer-section {
+  padding: 14px 16px;
+}
+
+.pinned-footer-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 10px;
 }
 
 .mode-toggle-count {
@@ -1037,6 +1084,17 @@ button {
   gap: 8px;
 }
 
+.field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.field-label-row .color-controls {
+  flex: 1;
+  min-width: 0;
+}
+
 .color-native-input {
   width: 34px;
   height: 30px;
@@ -1121,6 +1179,19 @@ button {
 .field-hint {
   font-size: 10.5px;
   color: var(--text-faint);
+}
+
+.export-filename-hint {
+  color: var(--text-dim);
+}
+
+.export-filename {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text);
+  background: var(--bg-inset);
+  border-radius: 3px;
+  padding: 1px 4px;
 }
 
 .assignments-summary {
@@ -1261,18 +1332,68 @@ button {
 }
 
 .export-name-input {
+  flex: 1;
   min-width: 0;
   height: 34px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 0 9px;
+  font-size: 13px;
+  transition: border-color var(--transition);
+}
+
+.export-name-input:focus {
+  border-color: var(--accent);
+}
+
+.export-selected-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.export-selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-selected-chip-kind {
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .export-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
-.export-btn,
-.install-btn {
+.export-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.export-btn {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1285,12 +1406,11 @@ button {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  width: 100%;
   transition: background var(--transition), border-color var(--transition), transform 100ms ease;
 }
 
 .export-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
 }
@@ -1302,109 +1422,11 @@ button {
 }
 
 .export-btn:not(:disabled):hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 .export-btn:not(:disabled):active {
   transform: scale(0.98);
-}
-
-.install-btn {
-  background: transparent;
-  color: var(--accent-text);
-  border: 1px solid var(--text-dim);
-}
-
-.install-btn:disabled {
-  color: var(--disabled-text);
-  cursor: not-allowed;
-}
-
-.install-btn:not(:disabled):hover {
-  background: var(--hover-bg);
-  border-color: var(--hover-border);
-}
-
-.install-btn:not(:disabled):active {
-  transform: scale(0.98);
-}
-
-.install-status {
-  margin-top: 10px;
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  background: var(--bg-inset);
-  color: var(--text-dim);
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
-  line-height: 1.5;
-}
-
-.install-status svg {
-  flex: none;
-  margin-top: 1px;
-}
-
-.install-status-success {
-  background: var(--success-bg);
-  color: var(--success-text);
-  border: 1px solid var(--success-border);
-}
-
-.install-status-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.install-command-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.install-command {
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  white-space: pre;
-  background: var(--bg-inset);
-  color: var(--text);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  padding: 5px 8px;
-  font-size: 11.5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.install-command-copy-btn {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--text-dim);
-  background: transparent;
-  color: var(--accent-text);
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.install-command-copy-btn:hover {
-  background: var(--hover-bg);
-  border-color: var(--hover-border);
-}
-
-.install-copy-hint {
-  font-size: 11px;
-  color: var(--warning-text);
 }
 
 /* ---------- Toast ---------- */
@@ -1499,7 +1521,7 @@ button {
 }
 
 .tour-invite-start-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -1511,7 +1533,7 @@ button {
 }
 
 .tour-invite-start-btn:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 .tour-invite-dismiss-btn {
@@ -1563,10 +1585,12 @@ button {
 }
 
 .export-hint {
-  margin-top: 9px;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
   color: var(--text-faint);
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 /* ---------- Share panel ---------- */
@@ -1666,13 +1690,13 @@ button {
 }
 
 .confirm-confirm-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
 }
 
 .confirm-confirm-btn:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 .confirm-confirm-btn-danger {
@@ -2076,8 +2100,8 @@ button {
 }
 
 .marketplace-use-btn:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
   color: #fff;
 }
 
@@ -2092,62 +2116,65 @@ button {
   margin: 0 0 10px 0;
 }
 
-.marketplace-result-static {
-  cursor: default;
-}
-
-.marketplace-result-static:hover {
-  background: none;
-}
-
-.icon-theme-paired {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.icon-theme-paired-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.icon-theme-paired-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.icon-theme-paired-link:hover {
-  color: var(--accent);
-}
-
-.icon-theme-paired-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.icon-theme-cancel-btn {
-  margin-top: 8px;
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  font-family: inherit;
+.icon-theme-current-pairing {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
   font-size: 11.5px;
-  cursor: pointer;
-  padding: 4px 0;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.icon-theme-cancel-btn:hover {
+.icon-theme-current-pairing a {
   color: var(--text);
-  text-decoration: underline;
+  font-weight: 600;
+}
+
+.icon-theme-current-pairing .remove-assignment-btn {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 3px 7px;
+  border: 1px solid var(--text-dim);
+  border-radius: var(--radius-sm);
+}
+
+.icon-explorer-preview {
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+
+.icon-explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.icon-explorer-row-nested {
+  padding-left: 20px;
+}
+
+.icon-explorer-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  object-fit: contain;
+}
+
+.icon-explorer-icon-fallback {
+  opacity: 0.6;
+}
+
+.icon-explorer-note {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+  font-size: 10.5px;
+  opacity: 0.75;
+  line-height: 1.4;
 }
 
 .marketplace-preview-pane {
@@ -2233,7 +2260,7 @@ button {
 }
 
 .app-crash-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
@@ -2244,7 +2271,7 @@ button {
 }
 
 .app-crash-btn:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 /* ---------- Responsive (tablet/mobile) ---------- */
@@ -2283,10 +2310,15 @@ button {
     flex-direction: column;
     overflow-y: auto;
     /* The centering on the desktop side-by-side layout is a horizontal
-       concern (balancing leftover width past editor-pane's max-width) —
+       concern (balancing leftover width past editor-column's max-width) —
        flipped to a column, that same property would center short content
        vertically instead, which isn't wanted here. */
     justify-content: flex-start;
+  }
+
+  .editor-column {
+    flex: none;
+    max-width: none;
   }
 
   .editor-pane {
@@ -2469,13 +2501,13 @@ button {
 }
 
 .tour-next-btn {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #fff;
   border: none;
 }
 
 .tour-next-btn:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover);
 }
 
 @media (max-width: 520px) {
@@ -2489,12 +2521,6 @@ button {
 
   .language-picker {
     padding: 8px 14px;
-  }
-
-  .regenerate-btn {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
   }
 
   .editor-pane {

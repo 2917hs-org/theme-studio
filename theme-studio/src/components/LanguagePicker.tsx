@@ -1,14 +1,12 @@
 import type { CSSProperties } from 'react';
 import { LANGUAGES, type LanguageDef } from '../data/languages';
-import { RefreshIcon } from './icons';
 
 interface LanguagePickerProps {
   selected: LanguageDef;
   onSelect: (lang: LanguageDef) => void;
-  onRegenerate: () => void;
 }
 
-export function LanguagePicker({ selected, onSelect, onRegenerate }: LanguagePickerProps) {
+export function LanguagePicker({ selected, onSelect }: LanguagePickerProps) {
   return (
     <div className="language-picker">
       <div className="language-list">
@@ -25,9 +23,6 @@ export function LanguagePicker({ selected, onSelect, onRegenerate }: LanguagePic
           </button>
         ))}
       </div>
-      <button id="tour-regenerate" className="regenerate-btn" onClick={onRegenerate} title="Generate a new code sample — your color assignments are kept">
-        <RefreshIcon /> Regenerate sample
-      </button>
     </div>
   );
 }

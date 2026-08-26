@@ -268,3 +268,13 @@ export function FolderIcon({ size = 14, className }: IconProps) {
     </svg>
   );
 }
+
+/** Generic fallback for a file row whose icon theme didn't resolve to an image (font-glyph icons, or a lookup miss) — a plain page glyph, not meant to represent any real language. */
+export function GenericFileIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M6.5 3.5h8l4 4v13a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1z" strokeLinejoin="round" />
+      <path d="M14 3.5v4.5h4.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
