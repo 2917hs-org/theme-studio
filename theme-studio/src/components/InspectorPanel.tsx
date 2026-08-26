@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ScopeResolution } from '../data/scopeLabels';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import { parseColorToHex, contrastRatio } from '../theme/colorParse';
 import { baselineColorsFor, defaultForegroundFor } from '../theme/baseline';
 import { quickPalette, widePalette } from '../theme/palette';

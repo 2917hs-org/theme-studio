@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { defaultBackgroundFor } from '../theme/baseline';
 import { parseColorToHex, relativeLuminance } from '../theme/colorParse';

@@ -6,7 +6,7 @@ import monaco from '../textmate/monacoInstance';
 import type { LanguageDef } from '../data/languages';
 import { wireLanguage, getTokenAt } from '../textmate/monacoBridge';
 import { resolveScope, type ScopeResolution } from '../data/scopeLabels';
-import { useAssignments } from '../store/AssignmentsContext';
+import { useAssignments } from '../store/useAssignments';
 import { buildMonacoTheme } from '../theme/themeBuilder';
 import type { ChromeOverride } from '../theme/chrome';
 import type { ThemeMode } from '../theme/mode';

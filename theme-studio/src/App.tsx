@@ -11,9 +11,12 @@ import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
-import { Toast, useToast } from './components/Toast';
+import { Toast } from './components/Toast';
+import { useToast } from './components/useToast';
 import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
-import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
+import { AssignmentsProvider } from './store/AssignmentsContext';
+import { useAssignments } from './store/useAssignments';
+import { DEFAULT_THEME_NAME } from './store/defaultThemeName';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 
 // Monaco is the single largest dependency in this app (its core editor

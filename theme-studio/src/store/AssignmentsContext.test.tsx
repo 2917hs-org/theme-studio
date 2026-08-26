@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AssignmentsProvider, DEFAULT_THEME_NAME, useAssignments } from './AssignmentsContext'
+import { AssignmentsProvider } from './AssignmentsContext'
+import { useAssignments } from './useAssignments'
+import { DEFAULT_THEME_NAME } from './defaultThemeName'
 import { loadPersistedTheme, savePersistedTheme } from './persistedTheme'
 
 function setup() {
