@@ -15,11 +15,12 @@ describe('AssignmentsContext', () => {
     localStorage.clear()
   })
 
-  it('starts empty, in light mode, with the default theme name', () => {
+  it('starts empty, in light mode, with the default theme name and no product theme selected', () => {
     const { result } = setup()
     expect(result.current.mode).toBe('light')
     expect(result.current.assignments.size).toBe(0)
     expect(result.current.themeName).toBe(DEFAULT_THEME_NAME)
+    expect(result.current.productThemeName).toBeNull()
     expect(result.current.recentColors).toEqual([])
   })
 
@@ -105,12 +106,14 @@ describe('AssignmentsContext', () => {
       result.current.setColor('keyword', '#ff0000')
       result.current.setChrome('dark', { background: '#000000' })
       result.current.setThemeName('Custom')
+      result.current.setProductThemeName('Midnight')
     })
     act(() => result.current.resetAll())
     expect(result.current.mode).toBe('light')
     expect(result.current.assignments.size).toBe(0)
     expect(result.current.chromeFor('dark')).toEqual({})
     expect(result.current.themeName).toBe(DEFAULT_THEME_NAME)
+    expect(result.current.productThemeName).toBeNull()
     expect(result.current.recentColors).toEqual([])
   })
 
@@ -142,7 +145,7 @@ describe('AssignmentsContext', () => {
       expect(result.current.assignmentsFor('light').size).toBe(0)
       expect(result.current.chromeFor('dark')).toEqual({ background: '#000000' })
       expect(result.current.chromeFor('light')).toEqual({})
-      expect(result.current.themeName).toBe('Dark Only Theme')
+      expect(result.current.productThemeName).toBe('Dark Only Theme')
       expect(result.current.mode).toBe('dark')
     })
 
@@ -179,26 +182,21 @@ describe('AssignmentsContext', () => {
       expect(result.current.assignmentsFor('light').get('keyword')).toBe('#222222')
     })
 
-    it('uses the imported theme\'s own name by default', () => {
+    it('sets productThemeName to the imported theme\'s own name, without touching themeName directly', () => {
       const { result } = setup()
       act(() => {
+        result.current.setThemeName('Something I already typed')
         result.current.importTheme({
           name: 'Dracula Official',
           variants: [{ mode: 'dark', chrome: {}, assignments: new Map() }],
         })
       })
-      expect(result.current.themeName).toBe('Dracula Official')
-    })
-
-    it('uses themeNameOverride instead of the imported theme\'s name when given one', () => {
-      const { result } = setup()
-      act(() => {
-        result.current.importTheme(
-          { name: 'Dracula Official', variants: [{ mode: 'dark', chrome: {}, assignments: new Map() }] },
-          DEFAULT_THEME_NAME,
-        )
-      })
-      expect(result.current.themeName).toBe(DEFAULT_THEME_NAME)
+      expect(result.current.productThemeName).toBe('Dracula Official')
+      // Unaffected — the Theme name box's own auto-fill (see
+      // ExportPanel.tsx) is what reacts to productThemeName, not this
+      // context directly, so a name already in the field isn't clobbered
+      // just by importing colors.
+      expect(result.current.themeName).toBe('Something I already typed')
     })
   })
 

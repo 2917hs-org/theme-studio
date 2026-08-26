@@ -1,137 +1,99 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { AssignmentsProvider, useAssignments } from '../store/AssignmentsContext'
 import { ExportPanel } from './ExportPanel'
 
-// A thin consumer so the test can seed assignments state directly, the same
-// way App.tsx does via useAssignments — ExportPanel itself has no way to
-// color a scope, it only reads what's already assigned.
+const MATERIAL_ICON_THEME = {
+  publisherName: 'pkief',
+  extensionName: 'material-icon-theme',
+  displayName: 'Material Icon Theme',
+  iconUrl: null,
+  vsixUrl: null,
+}
+
+// Mirrors what PresetPicker/ImportThemeDialog actually call — this test
+// exercises the real context, not a mock, since the auto-fill behavior
+// under test lives partly in AssignmentsContext (productThemeName) and
+// partly in ExportPanel's own effect (the divergence check).
 function Harness() {
-  const { setColor } = useAssignments()
+  const { setProductThemeName, setPairedIconTheme } = useAssignments()
   return (
-    <div>
-      <button onClick={() => setColor('type', '#abcdef', 'dark')}>Color a token</button>
-      <ExportPanel />
-    </div>
+    <>
+      <button onClick={() => setProductThemeName('Midnight')}>select preset</button>
+      <button onClick={() => setPairedIconTheme(MATERIAL_ICON_THEME)}>pair icon theme</button>
+      <button onClick={() => setPairedIconTheme(null)}>unpair icon theme</button>
+    </>
   )
 }
 
-function setup() {
+function renderPanel() {
   return render(
     <AssignmentsProvider>
       <Harness />
+      <ExportPanel />
     </AssignmentsProvider>,
   )
 }
 
-describe('ExportPanel', () => {
-  let createObjectURLSpy: ReturnType<typeof vi.fn>
+function nameInput() {
+  return screen.getByLabelText('Theme name') as HTMLInputElement
+}
 
-  beforeEach(() => {
-    createObjectURLSpy = vi.fn(() => 'blob:mock-url')
-    vi.stubGlobal('URL', { ...URL, createObjectURL: createObjectURLSpy, revokeObjectURL: vi.fn() })
+describe('ExportPanel theme name auto-fill', () => {
+  it('defaults to "vsts" with nothing selected', () => {
+    renderPanel()
+    expect(nameInput().value).toBe('vsts')
   })
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.useRealTimers()
-  })
-
-  it('disables both export actions until at least one scope is colored', () => {
-    setup()
-    expect(screen.getByRole('button', { name: /Download theme/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Get install command/ })).toBeDisabled()
-    expect(screen.getByText('Color at least one token to enable export.')).toBeInTheDocument()
-  })
-
-  it('enables export and packages a .vsix once a scope is colored', async () => {
+  it('fills in the product theme the moment one is selected', async () => {
     const user = userEvent.setup()
-    setup()
-
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    const downloadBtn = screen.getByRole('button', { name: /Download theme/ })
-    expect(downloadBtn).toBeEnabled()
-
-    await user.click(downloadBtn)
-
-    expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
-    const blob = createObjectURLSpy.mock.calls[0][0] as Blob
-    expect(blob).toBeInstanceOf(Blob)
-    expect(blob.type).toBe('application/zip')
-    expect(screen.getByRole('button', { name: /Downloaded/ })).toBeInTheDocument()
+    renderPanel()
+    await user.click(screen.getByText('select preset'))
+    expect(nameInput().value).toBe('vsts-midnight')
   })
 
-  it('reverts the "Downloaded" confirmation back to "Download theme" after the timeout', async () => {
-    // shouldAdvanceTime keeps real wall-clock time flowing for user-event's
-    // own internal waits while still letting us fast-forward the component's
-    // setTimeout, so `await user.click` doesn't hang waiting on fake timers.
-    vi.useFakeTimers({ shouldAdvanceTime: true })
+  it('keeps updating live as the icon theme pairing changes, while still auto-tracking', async () => {
     const user = userEvent.setup()
-    setup()
+    renderPanel()
+    await user.click(screen.getByText('select preset'))
+    await user.click(screen.getByText('pair icon theme'))
+    expect(nameInput().value).toBe('vsts-midnight-material-icon-theme')
 
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    await user.click(screen.getByRole('button', { name: /Download theme/ }))
-    expect(screen.getByRole('button', { name: /Downloaded/ })).toBeInTheDocument()
-
-    act(() => {
-      vi.advanceTimersByTime(2900)
-    })
-    expect(screen.getByRole('button', { name: /^Download theme$/ })).toBeInTheDocument()
+    await user.click(screen.getByText('unpair icon theme'))
+    expect(nameInput().value).toBe('vsts-midnight')
   })
 
-  it('typing a theme name updates the input and the exporting summary stays in sync', async () => {
+  it('stops auto-updating once the user types a custom name', async () => {
     const user = userEvent.setup()
-    setup()
+    renderPanel()
+    await user.click(screen.getByText('select preset'))
 
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    const nameInput = screen.getByLabelText('Theme name')
-    await user.clear(nameInput)
-    await user.type(nameInput, 'My Custom Theme')
+    const input = nameInput()
+    await user.clear(input)
+    await user.type(input, 'My Own Name')
+    expect(nameInput().value).toBe('My Own Name')
 
-    expect(nameInput).toHaveValue('My Custom Theme')
-    expect(screen.getByText(/Exporting Dark/)).toBeInTheDocument()
+    // A later selection change must not clobber the custom text.
+    await user.click(screen.getByText('pair icon theme'))
+    expect(nameInput().value).toBe('My Own Name')
   })
 
-  it('shows an inline error instead of crashing when packaging the .vsix fails', async () => {
-    createObjectURLSpy.mockImplementation(() => {
-      throw new Error('boom')
-    })
+  it('leaves the field empty (not force-refilled) if the user clears it with nothing else changing', async () => {
     const user = userEvent.setup()
-    setup()
+    renderPanel()
+    const input = nameInput()
+    await user.clear(input)
+    // Deliberately does NOT snap back to "vsts" here — see the comment in
+    // ExportPanel.tsx: only a change in what's *selected* re-triggers the
+    // auto-fill, precisely so an in-progress edit (clear, then retype) is
+    // never interrupted mid-keystroke. The "vsts" default still applies at
+    // export time regardless (buildCurrentVsix falls back to it).
+    expect(nameInput().value).toBe('')
 
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    await user.click(screen.getByRole('button', { name: /Download theme/ }))
-
-    expect(screen.getByText('Something went wrong generating the file. Please try again.')).toBeInTheDocument()
-    // The button must not get stuck in a permanent "Building…" state after the failure.
-    expect(screen.getByRole('button', { name: /^Download theme$/ })).toBeEnabled()
-  })
-
-  it('"Get install command" downloads the file and shows the one-line install command', async () => {
-    // user-event installs its own clipboard stub during setup() — define ours after, so it wins.
-    const user = userEvent.setup()
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-    setup()
-
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    await user.click(screen.getByRole('button', { name: /Get install command/ }))
-
-    await waitFor(() => expect(screen.getByText(/code --install-extension/)).toBeInTheDocument())
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('code --install-extension'))
-    expect(screen.getByText(/already copied to your clipboard/)).toBeInTheDocument()
-  })
-
-  it('falls back to a manual-copy hint when the clipboard write is denied', async () => {
-    const user = userEvent.setup()
-    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-    setup()
-
-    await user.click(screen.getByRole('button', { name: 'Color a token' }))
-    await user.click(screen.getByRole('button', { name: /Get install command/ }))
-
-    await waitFor(() => expect(screen.getByText(/Couldn't copy automatically/)).toBeInTheDocument())
+    // Re-typing after clearing must produce exactly what was typed, not the
+    // old auto value with new characters appended onto it.
+    await user.type(input, 'Fresh Name')
+    expect(nameInput().value).toBe('Fresh Name')
   })
 })

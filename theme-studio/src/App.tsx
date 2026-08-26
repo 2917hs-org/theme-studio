@@ -6,15 +6,13 @@ import { PresetPicker } from './components/PresetPicker';
 import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
 import { AssignedColorsPanel } from './components/AssignedColorsPanel';
-import { IconThemePanel } from './components/IconThemePanel';
 import { ExportPanel } from './components/ExportPanel';
-import { SharePanel } from './components/SharePanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
 import { Toast, useToast } from './components/Toast';
-import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, FolderIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
+import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 
@@ -232,21 +230,14 @@ function AppInner() {
             <AssignedColorsPanel />
           </CollapsibleSection>
 
-          <CollapsibleSection
-            title="Icon theme"
-            icon={<FolderIcon size={14} />}
-            badge={pairedIconTheme && <span className="collapsible-badge" title={pairedIconTheme.displayName}>{pairedIconTheme.displayName}</span>}
-          >
-            <IconThemePanel />
-          </CollapsibleSection>
-
-          <CollapsibleSection id="tour-export" title="Export theme" icon={<ExportIcon size={14} />}>
-            <ExportPanel />
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Share this tool" icon={<Share2Icon size={14} />}>
-            <SharePanel />
-          </CollapsibleSection>
+          <div className="pinned-footer">
+            <div id="tour-export" className="pinned-footer-section">
+              <div className="pinned-footer-label">
+                <ExportIcon size={14} /> Export theme
+              </div>
+              <ExportPanel />
+            </div>
+          </div>
         </aside>
       </main>
 
