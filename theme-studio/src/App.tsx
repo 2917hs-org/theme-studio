@@ -12,7 +12,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
 import { Toast, useToast } from './components/Toast';
-import { SpotlightIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
+import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
 import { AssignmentsProvider, useAssignments, DEFAULT_THEME_NAME } from './store/AssignmentsContext';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
 
@@ -170,38 +170,49 @@ function AppInner() {
         </div>
       </header>
 
-      <PresetPicker onImported={showToast} language={language} code={code} />
-
-      <LanguagePicker selected={language} onSelect={handleSelectLanguage} onRegenerate={handleRegenerate} />
-
       <main className="app-main">
-        <div id="tour-editor" className="editor-pane">
-          <div className="editor-toolbar">
-            <button
-              className={isolateColors ? 'editor-toolbar-btn editor-toolbar-btn-active' : 'editor-toolbar-btn'}
-              onClick={() => setIsolateColors((v) => !v)}
-              title={isolateColors ? 'Showing only your assigned colors — click to preview full defaults' : 'Show only your assigned colors'}
-              aria-label="Toggle isolating assigned colors"
-              aria-pressed={isolateColors}
-            >
-              <SpotlightIcon size={14} />
-            </button>
-          </div>
-          {isolateColors && (
-            <div className="isolate-banner">
-              <SpotlightIcon size={12} /> Showing only your assigned colors — everything else is flattened to gray
+        <div className="editor-column">
+          <PresetPicker onImported={showToast} language={language} code={code} />
+
+          <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
+
+          <div id="tour-editor" className="editor-pane">
+            <div className="editor-toolbar">
+              <button
+                id="tour-regenerate"
+                className="editor-toolbar-btn"
+                onClick={handleRegenerate}
+                title="Generate a new code sample — your color assignments are kept"
+                aria-label="Regenerate sample"
+              >
+                <RefreshIcon size={14} />
+              </button>
+              <button
+                className={isolateColors ? 'editor-toolbar-btn editor-toolbar-btn-active' : 'editor-toolbar-btn'}
+                onClick={() => setIsolateColors((v) => !v)}
+                title={isolateColors ? 'Showing only your assigned colors — click to preview full defaults' : 'Show only your assigned colors'}
+                aria-label="Toggle isolating assigned colors"
+                aria-pressed={isolateColors}
+              >
+                <SpotlightIcon size={14} />
+              </button>
             </div>
-          )}
-          <Suspense
-            fallback={
-              <div className="editor-loading-overlay" style={{ position: 'static', height: '100%' }}>
-                <div className="spinner" />
-                <span>Loading editor…</span>
+            {isolateColors && (
+              <div className="isolate-banner">
+                <SpotlightIcon size={12} /> Showing only your assigned colors — everything else is flattened to gray
               </div>
-            }
-          >
-            <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
-          </Suspense>
+            )}
+            <Suspense
+              fallback={
+                <div className="editor-loading-overlay" style={{ position: 'static', height: '100%' }}>
+                  <div className="spinner" />
+                  <span>Loading editor…</span>
+                </div>
+              }
+            >
+              <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
+            </Suspense>
+          </div>
         </div>
         <aside className="side-pane">
           <ModeSwitcher />
@@ -225,6 +236,7 @@ function AppInner() {
           <CollapsibleSection
             title="Assigned colors"
             icon={<SwatchIcon size={14} />}
+            defaultOpen={totalAssignments > 0}
             badge={totalAssignments > 0 && <span className="collapsible-count">{totalAssignments}</span>}
           >
             <AssignedColorsPanel />
