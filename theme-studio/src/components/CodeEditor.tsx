@@ -42,11 +42,6 @@ export function CodeEditor({ language, code, isolate, onTokenSelect }: CodeEdito
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const languageRef = useRef<LanguageDef>(language);
   const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
-  const hoverDecorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
-  // Range of the token currently previewed on hover, so mousemove can skip
-  // re-tokenizing on every pixel-level move within the same word — only a
-  // line/column change that lands outside it needs a fresh lookup.
-  const hoverRangeRef = useRef<{ line: number; startColumn: number; endColumn: number } | null>(null);
   const { assignments, mode, chrome } = useAssignments();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,34 +66,6 @@ export function CodeEditor({ language, code, isolate, onTokenSelect }: CodeEdito
     });
     editorRef.current = editor;
     decorationsRef.current = editor.createDecorationsCollection([]);
-    hoverDecorationsRef.current = editor.createDecorationsCollection([]);
-
-    async function previewHover(position: monaco.Position) {
-      const model = editor.getModel();
-      if (!model) return;
-      const currentDef = languageRef.current;
-      let token: Awaited<ReturnType<typeof getTokenAt>>;
-      try {
-        token = await getTokenAt(model, currentDef, position);
-      } catch {
-        return;
-      }
-      if (!token) {
-        hoverRangeRef.current = null;
-        hoverDecorationsRef.current?.set([]);
-        return;
-      }
-      hoverRangeRef.current = { line: position.lineNumber, startColumn: token.startColumn, endColumn: token.endColumn };
-      hoverDecorationsRef.current?.set([
-        {
-          range: new monaco.Range(position.lineNumber, token.startColumn, position.lineNumber, token.endColumn),
-          options: {
-            className: 'token-hover',
-            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-          },
-        },
-      ]);
-    }
 
     async function inspectPosition(position: monaco.Position) {
       const model = editor.getModel();
@@ -130,35 +97,6 @@ export function CodeEditor({ language, code, isolate, onTokenSelect }: CodeEdito
 
     editor.onMouseDown((e) => {
       if (e.target.position) inspectPosition(e.target.position);
-    });
-
-    // Hover preview: highlight the exact token under the cursor *before* the
-    // user commits to a click, so short/adjacent tokens (e.g. "enum" next to
-    // "SessionStatus") are unambiguous instead of a guess at pixel boundaries.
-    editor.onMouseMove((e) => {
-      // Restrict to CONTENT_TEXT (as opposed to using target.position alone,
-      // which is set to an "approximate" position for margins/gutter/scrollbar
-      // targets too) so passing through the gutter on the way to the code
-      // doesn't flash a preview for whatever line happens to be underneath.
-      const position = e.target.type === monaco.editor.MouseTargetType.CONTENT_TEXT ? e.target.position : null;
-      if (!position) {
-        hoverRangeRef.current = null;
-        hoverDecorationsRef.current?.set([]);
-        return;
-      }
-      const current = hoverRangeRef.current;
-      const insideCurrent =
-        current &&
-        position.lineNumber === current.line &&
-        position.column >= current.startColumn &&
-        position.column < current.endColumn;
-      if (insideCurrent) return;
-      previewHover(position);
-    });
-
-    editor.onMouseLeave(() => {
-      hoverRangeRef.current = null;
-      hoverDecorationsRef.current?.set([]);
     });
 
     // Touch devices don't reliably fire onMouseDown the same way — Monaco's
@@ -211,8 +149,6 @@ export function CodeEditor({ language, code, isolate, onTokenSelect }: CodeEdito
       if (!editor) return;
       languageRef.current = language;
       decorationsRef.current?.set([]);
-      hoverRangeRef.current = null;
-      hoverDecorationsRef.current?.set([]);
       const model = editor.getModel();
       if (model) {
         monaco.editor.setModelLanguage(model, language.id);
