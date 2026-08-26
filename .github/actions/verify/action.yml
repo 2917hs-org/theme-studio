@@ -1,0 +1,41 @@
+name: 'Verify'
+description: 'Install dependencies and run typecheck, lint, and tests for theme-studio.'
+
+inputs:
+  node-version:
+    description: 'Node.js version to set up.'
+    required: false
+    default: '24'
+  working-directory:
+    description: 'Directory containing package.json, relative to the repo root.'
+    required: false
+    default: 'theme-studio'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci
+
+    - name: Typecheck
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npx tsc -b
+
+    - name: Lint
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm run lint
+
+    - name: Test
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm test
