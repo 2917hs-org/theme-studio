@@ -1,34 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
 import { useAssignments } from '../store/useAssignments';
 import { friendlyLabelFor } from '../data/scopeLabels';
 import { TrashIcon } from './icons';
+import type { ThemeMode } from '../theme/mode';
 
-const CLEAR_CONFIRM_TIMEOUT_MS = 3000;
 const MODES = ['dark', 'light'] as const;
+
+interface ColorGroup {
+  color: string;
+  scopes: string[];
+}
+
+// A preset (or an imported theme) fans one authored color out across many
+// TextMate scopes — e.g. 8 different comment scopes all sharing one exact
+// muted color. Listed scope-by-scope, that means the first several rows a
+// user sees are all identical, which reads as "everything is the same
+// grey" even though the palette underneath is fine. Grouping consecutive
+// scopes that share a color keeps the list one row per *distinct* color —
+// what someone assigned, not how many scopes it happened to expand into —
+// and removing a group clears every scope it stands for.
+export function groupByColor(assignments: Map<string, string>): ColorGroup[] {
+  const order: string[] = [];
+  const groups = new Map<string, ColorGroup>();
+  for (const [scope, color] of assignments) {
+    const key = color.toLowerCase();
+    let group = groups.get(key);
+    if (!group) {
+      group = { color, scopes: [] };
+      groups.set(key, group);
+      order.push(key);
+    }
+    group.scopes.push(scope);
+  }
+  return order.map((key) => groups.get(key)!);
+}
 
 /** Inventory of every scope colored so far, across both modes — independent of what's currently selected to export. */
 export function AssignedColorsPanel() {
-  const { assignmentsFor, clearColor, clearAllColors } = useAssignments();
-  const [confirmingClear, setConfirmingClear] = useState(false);
-  const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current);
-  }, []);
+  const { assignmentsFor, clearColor, replaceAssignments } = useAssignments();
 
   const darkAssignments = assignmentsFor('dark');
   const lightAssignments = assignmentsFor('light');
   const totalCount = darkAssignments.size + lightAssignments.size;
 
-  function handleClearClick() {
-    if (!confirmingClear) {
-      setConfirmingClear(true);
-      clearTimeoutRef.current = setTimeout(() => setConfirmingClear(false), CLEAR_CONFIRM_TIMEOUT_MS);
-      return;
-    }
-    if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current);
-    setConfirmingClear(false);
-    clearAllColors();
+  // Only this mode's colors — clearing Dark shouldn't touch what you've
+  // already built for Light, and vice versa.
+  function handleClearClick(m: ThemeMode) {
+    replaceAssignments(m, new Map());
   }
 
   if (totalCount === 0) {
@@ -41,45 +58,51 @@ export function AssignedColorsPanel() {
     );
   }
 
+  const visibleModes = MODES.filter((m) => assignmentsFor(m).size > 0);
+
   return (
     <>
-      {MODES.map((m) => {
+      {visibleModes.map((m) => {
         const modeAssignments = assignmentsFor(m);
-        if (modeAssignments.size === 0) return null;
+        const groups = groupByColor(modeAssignments);
+        const modeLabel = m === 'dark' ? 'Dark' : 'Light';
         return (
           <div className="assignments-summary" key={m}>
             <div className="assignments-summary-title">
-              <span className="assignments-mode-tag">{m === 'dark' ? 'Dark' : 'Light'}</span>
-              {modeAssignments.size} scope{modeAssignments.size === 1 ? '' : 's'} colored
+              <span className="assignments-summary-left">
+                <span className="assignments-mode-tag">{modeLabel}</span>
+                {groups.length} color{groups.length === 1 ? '' : 's'}
+              </span>
+              <button className="clear-all-btn" onClick={() => handleClearClick(m)} aria-label="Clear All" title="Clear All">
+                <TrashIcon size={13} />
+              </button>
             </div>
             <ul className="assignments-list">
-              {[...modeAssignments.entries()].map(([scope, color]) => (
-                <li key={scope}>
-                  <span className="swatch" style={{ background: color }} />
-                  <span className="assignment-text">
-                    <span className="assignment-label">{friendlyLabelFor(scope) ?? scope}</span>
-                    <span className="assignment-scope" title={scope}>
-                      {scope}
+              {groups.map(({ color, scopes }) => {
+                const primaryScope = scopes[0];
+                return (
+                  <li key={color}>
+                    <span className="swatch" style={{ background: color }} />
+                    <span className="assignment-text">
+                      <span className="assignment-label">{friendlyLabelFor(primaryScope) ?? primaryScope}</span>
+                      <span className="assignment-scope" title={scopes.join(', ')}>
+                        {scopes.length > 1 ? `${scopes.length} scopes, incl. ${primaryScope}` : primaryScope}
+                      </span>
                     </span>
-                  </span>
-                  <button className="remove-assignment-btn" onClick={() => clearColor(scope, m)} title="Remove">
-                    ×
-                  </button>
-                </li>
-              ))}
+                    <button
+                      className="remove-assignment-btn"
+                      onClick={() => scopes.forEach((scope) => clearColor(scope, m))}
+                      title={scopes.length > 1 ? `Remove (clears ${scopes.length} scopes)` : 'Remove'}
+                    >
+                      ×
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         );
       })}
-
-      <button
-        className={confirmingClear ? 'clear-all-btn clear-all-btn-confirming' : 'clear-all-btn'}
-        onClick={handleClearClick}
-        onBlur={() => setConfirmingClear(false)}
-      >
-        <TrashIcon size={12} />
-        {confirmingClear ? 'Click again to clear both modes' : 'Clear all colors'}
-      </button>
     </>
   );
 }

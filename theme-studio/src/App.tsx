@@ -5,25 +5,31 @@ import { LanguagePicker } from './components/LanguagePicker';
 import { PresetPicker } from './components/PresetPicker';
 import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
-import { AssignedColorsPanel } from './components/AssignedColorsPanel';
+import { AssignedColorsPanel, groupByColor } from './components/AssignedColorsPanel';
 import { ExportPanel } from './components/ExportPanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SharePanel } from './components/SharePanel';
 import { SiteTour } from './components/SiteTour';
 import { TourInvite } from './components/TourInvite';
 import { Toast } from './components/Toast';
 import { useToast } from './components/useToast';
-import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, CompassIcon } from './components/icons';
+import { SpotlightIcon, RefreshIcon, RotateCcwIcon, CursorClickIcon, SwatchIcon, ExportIcon, Share2Icon, CompassIcon } from './components/icons';
 import { AssignmentsProvider } from './store/AssignmentsContext';
 import { useAssignments } from './store/useAssignments';
 import { DEFAULT_THEME_NAME } from './store/defaultThemeName';
 import { dismissTour, hasTourBeenDismissed } from './store/tourStorage';
+import { downloadInFlight } from './vsix/buildVsix';
+import { track } from './analytics/track';
+import { clearShareLinkParam, decodeShareLink, readShareLinkParam, shareLinkToImportedTheme, type ShareLinkPayload } from './share/shareLink';
 
 // Monaco is the single largest dependency in this app (its core editor
 // engine alone is a few MB). Code-splitting it into its own chunk means the
 // app shell (header, language picker) paints immediately instead of
 // blocking on that download.
 const CodeEditor = lazy(() => import('./components/CodeEditor').then((m) => ({ default: m.CodeEditor })));
+
+type SectionId = 'inspect' | 'assigned' | 'export' | 'share';
 
 function AppInner() {
   const [language, setLanguage] = useState<LanguageDef>(LANGUAGES[0]);
@@ -33,7 +39,32 @@ function AppInner() {
   const [resetPending, setResetPending] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showTourInvite, setShowTourInvite] = useState(false);
-  const { assignmentsFor, chromeFor, mode, themeName, pairedIconTheme, resetAll, wasRestored } = useAssignments();
+  const {
+    assignmentsFor,
+    chromeFor,
+    mode,
+    setMode,
+    themeName,
+    setThemeName,
+    setThemeNameAutoTracked,
+    setProductThemeName,
+    pairedIconTheme,
+    setPairedIconTheme,
+    importTheme,
+    resetAll,
+    wasRestored,
+  } = useAssignments();
+  // The four side-panel sections form a single-open accordion — opening one
+  // closes whichever else was open, so the panel reads as one thing to look
+  // at instead of several competing for attention. Starts on whichever of
+  // Inspect/Assigned actually has something to show given a restored
+  // session, matching the previous per-section `defaultOpen` heuristics.
+  const [openSection, setOpenSection] = useState<SectionId | null>(() =>
+    assignmentsFor('dark').size + assignmentsFor('light').size > 0 ? 'assigned' : 'inspect',
+  );
+  function toggleSection(id: SectionId) {
+    setOpenSection((current) => (current === id ? null : id));
+  }
   const { toastMessage, showToast } = useToast();
   // A theme being applied/imported/used gets a shorter, snappier
   // notification than the app's other toasts (session-restore, Reset) —
@@ -41,6 +72,61 @@ function AppInner() {
   // surfacing news they need a normal beat to notice and read.
   const THEME_TOAST_DURATION_MS = 2000;
   const showThemeToast = (message: string) => showToast(message, THEME_TOAST_DURATION_MS);
+
+  // Applying/importing/remixing a theme (Quick Start, Marketplace, Upload,
+  // Gallery) is exactly the moment "Assigned colors" becomes the
+  // interesting section to be looking at — whichever section the accordion
+  // happened to be on before isn't what the user just did.
+  function handleThemeApplied(message: string) {
+    showThemeToast(message);
+    setOpenSection('assigned');
+  }
+
+  useEffect(() => {
+    track('app_loaded');
+  }, []);
+
+  // Replaces the whole theme-in-progress with what a shared `?t=` link
+  // encodes (see src/share/shareLink.ts) — reuses `importTheme` for the
+  // assignments/chrome swap, then explicitly overrides the mode, theme name,
+  // and paired icon theme importTheme deliberately doesn't touch, so the
+  // hydrated state matches the sender's exactly rather than just their colors.
+  function hydrateFromShareLink(payload: ShareLinkPayload) {
+    importTheme(shareLinkToImportedTheme(payload));
+    setMode(payload.mode);
+    setThemeName(payload.themeName);
+    setThemeNameAutoTracked(false);
+    setProductThemeName(payload.productThemeName);
+    setPairedIconTheme(payload.pairedIconTheme);
+  }
+
+  // Runs once at mount, before the user can do anything that would count as
+  // "unsaved local work" — a link is only ever the *initial* URL you land
+  // on, never something to re-check after interacting with the app.
+  useEffect(() => {
+    const encoded = readShareLinkParam();
+    if (!encoded) return;
+    // Stripped immediately either way — a malformed, stale, or already-applied
+    // link shouldn't keep re-triggering on refresh or Back navigation.
+    clearShareLinkParam();
+    const result = decodeShareLink(encoded);
+    if (!result.ok) {
+      showToast(
+        result.reason === 'old-version'
+          ? 'This link was made with an older version of Theme Studio.'
+          : "This link looks broken — couldn't load it.",
+      );
+      return;
+    }
+    // Opening a shared link is already an unambiguous "load this" action —
+    // gating it behind a confirm-dialog button asked the user to approve
+    // something they'd already decided by clicking the link. Applies
+    // immediately either way; the toast is the only feedback, same as any
+    // other theme-applying action in this app (a preset, an import).
+    hydrateFromShareLink(result.payload);
+    handleThemeApplied('Loaded the shared theme.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // First-visit-only, by default — hasTourBeenDismissed reads localStorage,
   // so this only runs once per mount rather than on every render, and
@@ -55,6 +141,7 @@ function AppInner() {
   function startTour() {
     setShowTourInvite(false);
     setShowTour(true);
+    track('tour_started');
   }
 
   function dismissTourInvite() {
@@ -76,10 +163,19 @@ function AppInner() {
   }, [wasRestored, showToast]);
 
   const totalAssignments = assignmentsFor('dark').size + assignmentsFor('light').size;
+  // Distinct colors across both modes — what the Assigned colors panel
+  // actually renders one row per, not the raw scope count above (a single
+  // color routinely fans out across dozens of scopes).
+  const totalDistinctColors = groupByColor(assignmentsFor('dark')).length + groupByColor(assignmentsFor('light')).length;
 
   useEffect(() => {
     if (totalAssignments === 0) return;
     function handleBeforeUnload(e: BeforeUnloadEvent) {
+      // Safari, unlike Chrome/Firefox, doesn't cleanly exempt an `<a
+      // download>` click from its normal navigation/unload pipeline while a
+      // `beforeunload` listener is attached — see downloadInFlight's doc
+      // comment in buildVsix.ts for the full story.
+      if (downloadInFlight.current) return;
       e.preventDefault();
       e.returnValue = '';
     }
@@ -89,13 +185,24 @@ function AppInner() {
 
   const code = useMemo(() => language.generate(seed), [language, seed]);
 
+  // Clicking a real token is the user asking to inspect it — switch the
+  // accordion there so the panel they actually want is what's showing,
+  // whichever one happened to be open before. A selection being *cleared*
+  // (regenerate, language switch) is never itself something to react to.
+  function handleTokenSelect(next: TokenSelection | null) {
+    setSelection(next);
+    if (next) setOpenSection('inspect');
+  }
+
   function handleRegenerate() {
     setSeed((s) => s + 1);
     setSelection(null);
+    track('sample_regenerated');
   }
 
   function handleSelectLanguage(lang: LanguageDef) {
     if (lang.id === language.id) return;
+    track('language_selected', { language: lang.id });
     // Color assignments key on universal TextMate scope names (keyword,
     // string, ...), not anything TypeScript- or Python-specific — the same
     // "keyword" purple applies correctly in any grammar. So switching
@@ -166,7 +273,10 @@ function AppInner() {
         </div>
         <div className="app-topbar-controls">
           {totalAssignments > 0 && (
-            <div className="app-progress-badge">
+            <div
+              className="app-progress-badge"
+              title={`${totalAssignments} syntax scope${totalAssignments === 1 ? '' : 's'} colored, using ${totalDistinctColors} distinct color${totalDistinctColors === 1 ? '' : 's'} — see them grouped by color in Assigned colors below.`}
+            >
               {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
             </div>
           )}
@@ -177,18 +287,21 @@ function AppInner() {
             <RotateCcwIcon size={12} /> Reset
           </button>
         </div>
+        {toastMessage && <Toast message={toastMessage} />}
       </header>
+
+      <div className="top-controls">
+        <PresetPicker onImported={handleThemeApplied} onApplied={handleThemeApplied} language={language} code={code} />
+
+        <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
+      </div>
 
       <main className="app-main">
         <div className="editor-column">
-          <PresetPicker onImported={showThemeToast} onApplied={showThemeToast} language={language} code={code} />
-
-          <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
-
           <div id="tour-editor" className="editor-pane">
             <div className="editor-toolbar">
               <button
-                id="tour-regenerate"
+                id="code-regenerate"
                 className="editor-toolbar-btn"
                 onClick={handleRegenerate}
                 title="Generate a new code sample — your color assignments are kept"
@@ -219,7 +332,7 @@ function AppInner() {
                 </div>
               }
             >
-              <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
+              <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={handleTokenSelect} />
             </Suspense>
           </div>
         </div>
@@ -230,7 +343,8 @@ function AppInner() {
             id="tour-inspect"
             title="Inspect token"
             icon={<CursorClickIcon size={14} />}
-            defaultOpen
+            open={openSection === 'inspect'}
+            onToggle={() => toggleSection('inspect')}
             badge={
               selection && (
                 <span className="collapsible-badge" title={selection.text}>
@@ -245,28 +359,47 @@ function AppInner() {
           <CollapsibleSection
             title="Assigned colors"
             icon={<SwatchIcon size={14} />}
-            defaultOpen={totalAssignments > 0}
-            badge={totalAssignments > 0 && <span className="collapsible-count">{totalAssignments}</span>}
+            open={openSection === 'assigned'}
+            onToggle={() => toggleSection('assigned')}
+            badge={totalDistinctColors > 0 && <span className="collapsible-count">{totalDistinctColors}</span>}
           >
             <AssignedColorsPanel />
           </CollapsibleSection>
 
           <div className="pinned-footer">
-            <div id="tour-export" className="pinned-footer-section">
-              <div className="pinned-footer-label">
-                <ExportIcon size={14} /> Export theme
-              </div>
+            <CollapsibleSection
+              id="tour-export"
+              title="Export theme"
+              icon={<ExportIcon size={14} />}
+              open={openSection === 'export'}
+              onToggle={() => toggleSection('export')}
+            >
               <ExportPanel />
-            </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              id="tour-share"
+              title="Share"
+              icon={<Share2Icon size={14} />}
+              open={openSection === 'share'}
+              onToggle={() => toggleSection('share')}
+            >
+              <SharePanel onCopied={showThemeToast} />
+            </CollapsibleSection>
           </div>
         </aside>
       </main>
 
-      {toastMessage && <Toast message={toastMessage} />}
-
       {showTourInvite && <TourInvite onStart={startTour} onDismiss={dismissTourInvite} />}
 
-      {showTour && <SiteTour onDone={() => setShowTour(false)} />}
+      {showTour && (
+        <SiteTour
+          onDone={() => {
+            track('tour_completed');
+            setShowTour(false);
+          }}
+        />
+      )}
 
       {resetPending && (
         <ConfirmDialog
@@ -283,6 +416,7 @@ function AppInner() {
           onCancel={cancelReset}
         />
       )}
+
     </div>
   );
 }
