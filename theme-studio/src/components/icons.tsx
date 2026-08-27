@@ -293,3 +293,13 @@ export function GridIcon({ size = 14, className }: IconProps) {
     </svg>
   );
 }
+
+export function ImageIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M5 17.5l5-5 3.5 3.5L18 11l1.5 1.5" />
+    </svg>
+  );
+}

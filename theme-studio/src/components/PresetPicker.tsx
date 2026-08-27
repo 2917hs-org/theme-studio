@@ -5,7 +5,7 @@ import { useAssignments } from '../store/useAssignments';
 import { track } from '../analytics/track';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { ImportTab } from './ImportThemeDialog';
-import { GridIcon, SearchIcon, UploadIcon } from './icons';
+import { GridIcon, ImageIcon, SearchIcon, UploadIcon } from './icons';
 import type { LanguageDef } from '../data/languages';
 
 // Clusters adjacent same-category presets so the picker can render one
@@ -146,6 +146,15 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
             >
               <UploadIcon size={15} />
               <span className="preset-action-card-label">Import</span>
+            </button>
+            <button
+              type="button"
+              className="preset-action-card"
+              onClick={() => setImportTab('image')}
+              title="Derive a theme from a photo — drop in an image, get a full color theme out"
+            >
+              <ImageIcon size={15} />
+              <span className="preset-action-card-label">Image</span>
             </button>
             <button
               id="tour-search"

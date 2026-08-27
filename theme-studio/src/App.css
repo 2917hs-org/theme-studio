@@ -1950,9 +1950,9 @@ button {
   padding: 14px 16px 0;
   flex: none;
   border-bottom: 1px solid var(--border);
-  /* Four tabs is a tight fit at the narrow (Upload) dialog width — this is
+  /* Five tabs is a tight fit at the narrow (Upload) dialog width — this is
      a defensive fallback (scroll, don't wrap or clip) for a longer label,
-     a wider font, or a future fifth tab, not something the common case
+     a wider font, or a future sixth tab, not something the common case
      should ever need. */
   overflow-x: auto;
   scrollbar-width: thin;
@@ -2022,7 +2022,8 @@ button {
   transition: background var(--transition), border-color var(--transition), color var(--transition);
 }
 
-.import-upload-dropzone:hover:not(:disabled) {
+.import-upload-dropzone:hover:not(:disabled),
+.import-upload-dropzone-active {
   background: var(--hover-bg);
   border-color: var(--accent);
   color: var(--text);
@@ -2043,6 +2044,76 @@ button {
   font-size: 11.5px;
   text-align: center;
   max-width: 280px;
+}
+
+/* ---------- Import: Image tab ---------- */
+
+/* Plain text suggestions, not real thumbnails — showing actual sample
+   images would mean bundling binary assets (or fetching them, which this
+   feature deliberately never does) just for an empty-state hint. */
+.image-theme-idea-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.image-theme-idea {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.image-theme-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.image-theme-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-theme-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.image-theme-chip-label {
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.image-theme-apply-btn {
+  width: 100%;
+}
+
+.image-theme-retry-btn {
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.image-theme-retry-btn:hover {
+  background: var(--hover-bg);
+}
+
+.image-theme-retry-btn-secondary {
+  align-self: center;
 }
 
 /* ---------- Import: Marketplace search tab ---------- */
@@ -2097,7 +2168,8 @@ button {
     align-items: stretch;
   }
 
-  .marketplace-results {
+  .marketplace-results,
+  .image-theme-controls {
     flex: 0 0 260px;
   }
 
