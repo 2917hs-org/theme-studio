@@ -376,6 +376,7 @@ function AppInner() {
             </CollapsibleSection>
 
             <CollapsibleSection
+              id="tour-share"
               title="Share"
               icon={<Share2Icon size={14} />}
               open={openSection === 'share'}
