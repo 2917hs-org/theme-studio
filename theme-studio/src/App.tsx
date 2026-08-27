@@ -272,14 +272,6 @@ function AppInner() {
           </div>
         </div>
         <div className="app-topbar-controls">
-          {totalAssignments > 0 && (
-            <div
-              className="app-progress-badge"
-              title={`${totalAssignments} syntax scope${totalAssignments === 1 ? '' : 's'} colored, using ${totalDistinctColors} distinct color${totalDistinctColors === 1 ? '' : 's'} — see them grouped by color in Assigned colors below.`}
-            >
-              {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
-            </div>
-          )}
           <button className="reset-app-btn" onClick={startTour} title="Replay the guided tour">
             <CompassIcon size={12} /> Tour
           </button>

@@ -219,7 +219,11 @@ button {
   height: 28px;
   background: transparent;
   color: #c9d1d9;
-  border: 1px solid #30363d;
+  /* The topbar is always-dark chrome (not themed), so this stays a fixed
+     color rather than var(--text-dim): #30363d (--border) reads as barely
+     there until hover, so use the topbar's own dim-text gray instead —
+     visible at rest, same fix as .share-btn elsewhere in this file. */
+  border: 1px solid #9198a1;
   border-radius: var(--radius-sm);
   padding: 0 10px;
   font-size: 11.5px;
@@ -231,7 +235,7 @@ button {
 
 .reset-app-btn:hover {
   background: #21262d;
-  border-color: #6e7681;
+  border-color: #f0f6fc;
   color: #f0f6fc;
 }
 
@@ -1260,33 +1264,6 @@ button {
   margin-bottom: 6px;
 }
 
-.assignments-summary-title {
-  color: var(--text-dim);
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.assignments-summary-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.assignments-mode-tag {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
 .assignments-summary-hint {
   color: var(--text-faint);
   font-style: italic;
@@ -1365,23 +1342,33 @@ button {
   background: rgba(244, 135, 113, 0.1);
 }
 
+.clear-all-row {
+  padding: 8px 0 2px !important;
+  justify-content: center;
+}
+
 .clear-all-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   background: transparent;
-  border: none;
+  /* --border-soft reads as barely-there until hover — see .share-btn for the
+     same fix: --text-dim stays clearly visible at rest in both themes. */
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
-  flex: none;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background var(--transition), color var(--transition);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
 .clear-all-btn:hover {
   color: var(--danger-text-strong);
+  border-color: var(--danger-text-strong);
   background: rgba(244, 135, 113, 0.1);
 }
 
