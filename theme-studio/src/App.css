@@ -282,6 +282,40 @@ button {
   flex-shrink: 0;
 }
 
+/* One cluster of same-category cards, labeled above its own row instead of
+   inline — the whole picker still stays a single horizontally-scrolling
+   line (each cluster is just a column within that row), so it reads as
+   categorized without costing any extra vertical space in the layout. */
+.preset-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.preset-group:not(:first-child) {
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.preset-group-label {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.preset-group-cards {
+  display: flex;
+  gap: 8px;
+}
+
 /* Each card renders in the preset's own colors (inline styles), not the
    app's current theme — it's a live preview of what one click applies. */
 .preset-card {
@@ -382,18 +416,29 @@ button {
   gap: 12px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .language-list {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
+  /* Same "no visible scrollbar" treatment as .preset-list — a partially
+     cut-off chip at the edge is its own "there's more" cue. */
+  scrollbar-width: none;
+}
+
+.language-list::-webkit-scrollbar {
+  display: none;
 }
 
 .lang-chip {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 6px;
   height: 28px;
   background: var(--bg-raised);
@@ -448,10 +493,15 @@ button {
   justify-content: center;
 }
 
-/* Quick Start, the language picker, and the editor all live in one column
-   now — side-pane (a flex sibling here) stretches to match this column's
-   full height by default, so it starts at the very top next to Quick
-   Start instead of only alongside the editor. */
+/* Quick Start and the language picker span the full app width above
+   app-main, so side-pane (a flex sibling of editor-column below) starts
+   aligned with the top of the code editor instead of next to Quick
+   Start. */
+.top-controls {
+  display: flex;
+  flex-direction: column;
+}
+
 .editor-column {
   flex: 1;
   min-width: 0;

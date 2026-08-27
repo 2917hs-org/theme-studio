@@ -8,6 +8,25 @@ import type { ImportTab } from './ImportThemeDialog';
 import { GridIcon, SearchIcon, UploadIcon } from './icons';
 import type { LanguageDef } from '../data/languages';
 
+// Clusters adjacent same-category presets so the picker can render one
+// inline label per cluster instead of one per card — adjacency (not a full
+// group-by) is what lets a preset's position in THEME_PRESETS still control
+// display order within its cluster.
+function clusterByCategory(presets: ThemePreset[]): Array<{ category: string; presets: ThemePreset[] }> {
+  const clusters: Array<{ category: string; presets: ThemePreset[] }> = [];
+  for (const preset of presets) {
+    const last = clusters[clusters.length - 1];
+    if (last?.category === preset.category) {
+      last.presets.push(preset);
+    } else {
+      clusters.push({ category: preset.category, presets: [preset] });
+    }
+  }
+  return clusters;
+}
+
+const PRESET_CLUSTERS = clusterByCategory(THEME_PRESETS);
+
 // Pulls in vscode-textmate + jsonc-parser (grammar tokenizing for the
 // Marketplace preview, plus theme-file parsing, plus the icon-theme tab's
 // fflate unzip) — none of it is needed until someone actually opens the
@@ -91,54 +110,65 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
           differently-styled controls keeps that equivalence visible instead
           of implying presets are primary and the rest are an afterthought. */}
       <div className="preset-list">
-        {THEME_PRESETS.map((preset) => (
-          <button
-            key={preset.id}
-            className="preset-card"
-            style={{ background: preset.background, color: preset.text, borderColor: preset.comments }}
-            onClick={() => handlePresetClick(preset)}
-            title={`Apply the ${preset.name} preset${preset.author ? ` — inspired by ${preset.author}'s theme of the same name` : ''}`}
-          >
-            <span className="preset-name">{preset.name}</span>
-            <span className="preset-dots">
-              <span className="preset-dot" style={{ background: preset.keywords }} />
-              <span className="preset-dot" style={{ background: preset.strings }} />
-              <span className="preset-dot" style={{ background: preset.functions }} />
-              <span className="preset-dot" style={{ background: preset.types }} />
-              <span className="preset-dot" style={{ background: preset.numbers }} />
-            </span>
-          </button>
+        {PRESET_CLUSTERS.map((cluster) => (
+          <div className="preset-group" key={cluster.category}>
+            <span className="preset-group-label">{cluster.category}</span>
+            <div className="preset-group-cards">
+              {cluster.presets.map((preset) => (
+                <button
+                  key={preset.id}
+                  className="preset-card"
+                  style={{ background: preset.background, color: preset.text, borderColor: preset.comments }}
+                  onClick={() => handlePresetClick(preset)}
+                  title={`Apply the ${preset.name} preset${preset.author ? ` — inspired by ${preset.author}'s theme of the same name` : ''}`}
+                >
+                  <span className="preset-name">{preset.name}</span>
+                  <span className="preset-dots">
+                    <span className="preset-dot" style={{ background: preset.keywords }} />
+                    <span className="preset-dot" style={{ background: preset.strings }} />
+                    <span className="preset-dot" style={{ background: preset.functions }} />
+                    <span className="preset-dot" style={{ background: preset.types }} />
+                    <span className="preset-dot" style={{ background: preset.numbers }} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-        <button
-          id="tour-upload"
-          type="button"
-          className="preset-action-card"
-          onClick={() => setImportTab('upload')}
-          title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
-        >
-          <UploadIcon size={15} />
-          <span className="preset-action-card-label">Import</span>
-        </button>
-        <button
-          id="tour-search"
-          type="button"
-          className="preset-action-card"
-          onClick={() => setImportTab('search')}
-          title="Search the VS Code Marketplace for a theme to tweak and export as your own — also where you pair an icon theme"
-        >
-          <SearchIcon size={15} />
-          <span className="preset-action-card-label">Marketplace</span>
-        </button>
-        <button
-          id="tour-gallery"
-          type="button"
-          className="preset-action-card"
-          onClick={() => setImportTab('gallery')}
-          title="Browse themes other people built here and remix one as your own"
-        >
-          <GridIcon size={15} />
-          <span className="preset-action-card-label">Gallery</span>
-        </button>
+        <div className="preset-group">
+          <div className="preset-group-cards">
+            <button
+              id="tour-upload"
+              type="button"
+              className="preset-action-card"
+              onClick={() => setImportTab('upload')}
+              title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
+            >
+              <UploadIcon size={15} />
+              <span className="preset-action-card-label">Import</span>
+            </button>
+            <button
+              id="tour-search"
+              type="button"
+              className="preset-action-card"
+              onClick={() => setImportTab('search')}
+              title="Search the VS Code Marketplace for a theme to tweak and export as your own — also where you pair an icon theme"
+            >
+              <SearchIcon size={15} />
+              <span className="preset-action-card-label">Marketplace</span>
+            </button>
+            <button
+              id="tour-gallery"
+              type="button"
+              className="preset-action-card"
+              onClick={() => setImportTab('gallery')}
+              title="Browse themes other people built here and remix one as your own"
+            >
+              <GridIcon size={15} />
+              <span className="preset-action-card-label">Gallery</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {importTab && (
