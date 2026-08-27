@@ -273,6 +273,20 @@ export function buildVsixBlobSync(themeName: string, variants: ThemeVariant[], p
   return assembleVsix(themeName, variants, iconBytesResolved, pairedIconTheme);
 }
 
+// Set for the duration of the download click below (through its deferred
+// cleanup, not just the synchronous click() call — see that setTimeout's
+// comment for why the click's own effects may not be fully settled the
+// instant click() returns), and checked by App.tsx's `beforeunload` guard.
+// Safari, unlike Chrome/Firefox, doesn't cleanly exempt an `<a download>`
+// click from its normal navigation/unload pipeline — with an active
+// `beforeunload` listener on the page (present here whenever there's
+// anything colored, which is also exactly when export is enabled), Safari's
+// own heuristic for "is this a download, not a real navigation" gets
+// confused and it falls through to actually navigating the tab to the blob:
+// URL, which it then can't render ("Safari Can't Open the Page" /
+// WebKitBlobResource error 1). Suppressing the guard removes that ambiguity.
+export const downloadInFlight = { current: false };
+
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -280,6 +294,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.download = filename;
   a.rel = 'noopener';
   document.body.appendChild(a);
+  downloadInFlight.current = true;
   a.click();
   // Both cleanup steps deferred to a macrotask, not run synchronously right
   // after click() — that's already true below for the URL (some WebKit
@@ -288,9 +303,12 @@ export function downloadBlob(blob: Blob, filename: string): void {
   // drop the download's hand-off entirely if the anchor is detached from
   // the DOM before its own click-handling has fully settled, even though
   // click() itself returns synchronously. Removing the element on the same
-  // delayed macrotask as the URL revocation covers both at once.
+  // delayed macrotask as the URL revocation covers both at once, and
+  // downloadInFlight stays set through that same window so it's still true
+  // if Safari's own navigation decision lands slightly after click() returns.
   setTimeout(() => {
     a.remove();
     URL.revokeObjectURL(url);
+    downloadInFlight.current = false;
   }, 30_000);
 }

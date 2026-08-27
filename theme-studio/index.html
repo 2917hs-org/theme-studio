@@ -33,10 +33,15 @@
          through child-src to default-src, and WebKit versions are
          inconsistent about honoring that chain for this specific case. All
          three carry `blob:` explicitly instead of relying on any one
-         directive or the fallback chain. -->
+         directive or the fallback chain.
+         script-src/connect-src also allow https://plausible.io — the
+         cookieless analytics script (see src/analytics/track.ts) and the
+         events it posts. Declared unconditionally since a CSP meta tag is
+         static regardless of the env-gating that actually decides whether
+         the script gets injected; harmless to allow when unused. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.gallerycdn.vsassets.io; font-src 'self'; connect-src 'self' blob: https://marketplace.visualstudio.com https://*.gallerycdn.vsassets.io; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval' https://plausible.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.gallerycdn.vsassets.io; font-src 'self'; connect-src 'self' blob: https://marketplace.visualstudio.com https://*.gallerycdn.vsassets.io https://plausible.io; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 

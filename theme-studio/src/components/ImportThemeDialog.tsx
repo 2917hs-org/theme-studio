@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { useAssignments } from '../store/useAssignments';
 import { importThemeFile, ImportError, type ImportedTheme } from '../theme/importTheme';
 import { PRESET_SCOPES } from '../theme/presets';
@@ -15,12 +15,27 @@ import {
 } from '../marketplace/searchMarketplace';
 import { loadIconThemePreview, IconThemePreviewError, type IconThemePreviewAssets } from '../theme/iconThemeAssets';
 import { baselineColorsFor } from '../theme/baseline';
+import { track } from '../analytics/track';
+import { GALLERY_THEMES, type GalleryEntry } from '../data/gallery';
+import { decodeShareUrl, shareLinkToImportedTheme, type ShareLinkPayload } from '../share/shareLink';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ThemePreview } from './ThemePreview';
 import { IconThemeExplorerPreview } from './IconThemeExplorerPreview';
-import { UploadIcon, SearchIcon, CloseIcon, FolderIcon } from './icons';
+import { UploadIcon, SearchIcon, CloseIcon, FolderIcon, GridIcon } from './icons';
 
-export type ImportTab = 'upload' | 'search' | 'icon-theme';
+export type ImportTab = 'upload' | 'search' | 'icon-theme' | 'gallery';
+
+/** Where a parsed theme came from — distinguishes the `theme_imported` vs `marketplace_theme_forked` analytics events fired once it actually lands (see finishImport). */
+type ImportSource = 'upload' | 'marketplace';
+
+interface DecodedGalleryEntry {
+  entry: GalleryEntry;
+  /** Undefined only for a link that failed to decode — see the `error` field instead. */
+  payload?: ShareLinkPayload;
+  error?: 'malformed' | 'old-version';
+  /** A handful of accent colors for the card's quick-glance swatch — same fields the Marketplace tab's swatch dots use (see PRESET_SCOPES), computed once here rather than per render. */
+  dots?: string[];
+}
 
 interface ImportThemeDialogProps {
   onClose: () => void;
@@ -56,7 +71,19 @@ function formatInstallCount(n: number): string {
 }
 
 export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', language, code }: ImportThemeDialogProps) {
-  const { assignmentsFor, chromeFor, importTheme, pairedIconTheme, setPairedIconTheme, mode, chrome } = useAssignments();
+  const {
+    assignmentsFor,
+    chromeFor,
+    importTheme,
+    pairedIconTheme,
+    setPairedIconTheme,
+    mode,
+    chrome,
+    setMode,
+    setThemeName,
+    setThemeNameAutoTracked,
+    setProductThemeName,
+  } = useAssignments();
   const [tab, setTab] = useState<ImportTab>(initialTab);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -66,7 +93,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   // equivalent — see handlePairIconTheme below. `closeAfter` rides along so
   // the confirm dialog (deferred by a render or more) still closes/keeps
   // open exactly as the original action intended.
-  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; closeAfter: boolean } | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ theme: ImportedTheme; closeAfter: boolean; source: ImportSource } | null>(
+    null,
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImportingFile, setIsImportingFile] = useState(false);
@@ -117,6 +146,43 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   const activeIconResult = activeIconPreviewKey ? iconResults?.find((r) => iconResultKey(r) === activeIconPreviewKey) : undefined;
   const iconPreviewCacheRef = useRef<Map<string, IconThemePreviewAssets | 'loading' | 'failed'>>(new Map());
   const [, setIconPreviewTick] = useState(0);
+
+  // --- Gallery tab: every entry is a plain shareable link (see
+  // src/share/shareLink.ts), so unlike Marketplace search there's no
+  // network fetch involved — decoding the whole list up front is cheap and
+  // lets a broken/outdated entry (bad link, old schemaVersion) be flagged
+  // in the grid itself rather than only failing once someone tries to
+  // remix it.
+  const decodedGalleryEntries = useMemo<DecodedGalleryEntry[]>(
+    () =>
+      GALLERY_THEMES.map((entry) => {
+        const result = decodeShareUrl(entry.link);
+        if (!result.ok) return { entry, error: result.reason };
+        const assignments = shareLinkToImportedTheme(result.payload).variants[0].assignments;
+        const dots = [PRESET_SCOPES.keywords, PRESET_SCOPES.strings, PRESET_SCOPES.functions]
+          .map((scope) => assignments.get(scope))
+          .filter((c): c is string => Boolean(c));
+        return { entry, payload: result.payload, dots };
+      }),
+    [],
+  );
+  const [galleryHoveredKey, setGalleryHoveredKey] = useState<string | null>(null);
+  const [galleryPinnedKey, setGalleryPinnedKey] = useState<string | null>(null);
+  const activeGalleryKey = galleryHoveredKey ?? galleryPinnedKey;
+  const activeGalleryEntry = activeGalleryKey ? decodedGalleryEntries.find((d) => d.entry.link === activeGalleryKey) : undefined;
+  // Fires once per entry per dialog session the first time its preview
+  // actually becomes visible — not on every hover flicker — mirroring how a
+  // Marketplace result only really counts as "looked at" once its preview
+  // pane renders.
+  const viewedGalleryKeysRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!activeGalleryKey || viewedGalleryKeysRef.current.has(activeGalleryKey)) return;
+    viewedGalleryKeysRef.current.add(activeGalleryKey);
+    track('gallery_theme_viewed');
+  }, [activeGalleryKey]);
+  const [pendingRemix, setPendingRemix] = useState<{ entry: GalleryEntry; payload: ShareLinkPayload; closeAfter: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -220,12 +286,13 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     });
   }
 
-  function finishImport(theme: ImportedTheme, closeAfter: boolean) {
+  function finishImport(theme: ImportedTheme, closeAfter: boolean, source: ImportSource) {
     // The imported theme's own name becomes `productThemeName`, not
     // `themeName` directly — ExportPanel's auto-fill picks it up from
     // there (see composeAutoThemeName), so a custom name the user already
     // typed into the Theme name box isn't silently overwritten.
     importTheme(theme);
+    track(source === 'upload' ? 'theme_imported' : 'marketplace_theme_forked');
     onImported(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
     if (closeAfter) onClose();
   }
@@ -234,9 +301,36 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
   // doesn't preclude also pairing an icon theme in the next tab, so the
   // dialog stays open rather than forcing a reopen for that second step.
   // Uploading a file has no such follow-up, so it still closes on success.
-  function handleParsedTheme(theme: ImportedTheme, closeAfter: boolean) {
-    if (hasExistingWork()) setPendingImport({ theme, closeAfter });
-    else finishImport(theme, closeAfter);
+  function handleParsedTheme(theme: ImportedTheme, closeAfter: boolean, source: ImportSource) {
+    if (hasExistingWork()) setPendingImport({ theme, closeAfter, source });
+    else finishImport(theme, closeAfter, source);
+  }
+
+  // Remixing a Gallery entry hydrates *everything* the link encodes — mode,
+  // theme name, and paired icon theme, not just the color assignments — the
+  // same full fidelity as opening the link directly (see App.tsx's
+  // hydrateFromShareLink). `productThemeName` is deliberately overwritten
+  // with an explicit "Remixed from X by Y" credit rather than kept as
+  // whatever the payload's own productThemeName says: that field records
+  // what the *submitter* built their theme from (a preset, an import), two
+  // hops removed from this remix, and ExportPanel's existing "Theme" chip
+  // is the app's one lightweight attribution surface — reusing it here is
+  // this feature's whole "attribution banner", not a new one.
+  function finishRemix(entry: GalleryEntry, payload: ShareLinkPayload, closeAfter: boolean) {
+    importTheme(shareLinkToImportedTheme(payload));
+    setMode(payload.mode);
+    setThemeName(payload.themeName);
+    setThemeNameAutoTracked(false);
+    setProductThemeName(`Remixed from ${entry.name} by ${entry.author}`);
+    setPairedIconTheme(payload.pairedIconTheme);
+    track('gallery_theme_forked');
+    onImported(`Remixed "${entry.name}" by ${entry.author} — tweak the colors and export when ready.`);
+    if (closeAfter) onClose();
+  }
+
+  function handleRemixClick(entry: GalleryEntry, payload: ShareLinkPayload) {
+    if (hasExistingWork()) setPendingRemix({ entry, payload, closeAfter: true });
+    else finishRemix(entry, payload, true);
   }
 
   async function handleFileChosen(e: ChangeEvent<HTMLInputElement>) {
@@ -247,7 +341,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     setIsImportingFile(true);
     try {
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, true);
+      handleParsedTheme(theme, true, 'upload');
     } catch (err) {
       setUploadError(err instanceof ImportError ? err.message : 'Could not import this file.');
     } finally {
@@ -301,7 +395,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     try {
       const file = await fetchMarketplaceVsix(result);
       const theme = await importThemeFile(file);
-      handleParsedTheme(theme, false);
+      handleParsedTheme(theme, false, 'marketplace');
     } catch (err) {
       setSearchError(
         err instanceof MarketplaceError || err instanceof ImportError ? err.message : `Could not import "${result.displayName}".`,
@@ -353,6 +447,8 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
       vsixUrl: result.vsixUrl,
     };
     setPairedIconTheme(paired);
+    track('icon_theme_paired');
+    onImported(`Paired "${result.displayName}" as your icon theme.`);
   }
 
   const previewTheme = activePreviewKey ? themeCacheRef.current.get(activePreviewKey) : undefined;
@@ -398,7 +494,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
             className={tab === 'upload' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
             onClick={() => setTab('upload')}
           >
-            <UploadIcon size={13} /> Upload file
+            <UploadIcon size={13} /> Upload
           </button>
           <button
             type="button"
@@ -407,7 +503,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
             className={tab === 'search' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
             onClick={() => setTab('search')}
           >
-            <SearchIcon size={13} /> Search Marketplace
+            <SearchIcon size={13} /> Marketplace
           </button>
           <button
             type="button"
@@ -416,7 +512,16 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
             className={tab === 'icon-theme' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
             onClick={() => setTab('icon-theme')}
           >
-            <FolderIcon size={13} /> Icon Theme
+            <FolderIcon size={13} /> Icons
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'gallery'}
+            className={tab === 'gallery' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
+            onClick={() => setTab('gallery')}
+          >
+            <GridIcon size={13} /> Gallery
           </button>
         </div>
 
@@ -674,8 +779,137 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
               )}
             </div>
           )}
+
+          {tab === 'gallery' && (
+            <div className="import-search-pane">
+              <p className="field-hint icon-theme-intro">
+                Themes other people built, shared as plain links — no upload, no account. Pick one to load it, tweak
+                it, and export it as your own.
+              </p>
+
+              {decodedGalleryEntries.length === 0 ? (
+                // No split-pane layout for an empty gallery — there's
+                // nothing to hover or preview yet, so showing that hint
+                // anyway (in a narrow half-width column, no less) would
+                // just be empty chrome around an empty message.
+                <div className="marketplace-status gallery-empty-state">
+                  Nothing here yet.
+                  <br />
+                  Built a theme you're proud of?{' '}
+                  <a href="https://github.com/2917hs-org/theme-studio/pulls" target="_blank" rel="noreferrer noopener">
+                    Submit it on GitHub
+                  </a>{' '}
+                  to be the first.
+                </div>
+              ) : (
+              <div className="marketplace-search-layout">
+                <div className="marketplace-results">
+                  {decodedGalleryEntries.map((d) => {
+                    const key = d.entry.link;
+                    const broken = Boolean(d.error);
+                    return (
+                      <div
+                        className={key === activeGalleryKey ? 'marketplace-result marketplace-result-active' : 'marketplace-result'}
+                        key={key}
+                        onMouseEnter={() => setGalleryHoveredKey(key)}
+                        onMouseLeave={() => setGalleryHoveredKey((k) => (k === key ? null : k))}
+                        onClick={() => setGalleryPinnedKey(key)}
+                      >
+                        <div className="marketplace-result-visual">
+                          {broken ? (
+                            <div className="marketplace-result-icon marketplace-result-icon-placeholder" aria-hidden="true" />
+                          ) : (
+                            <div className="marketplace-result-swatch" title="Preview of this theme's colors">
+                              {d.dots?.map((c, i) => (
+                                <span key={i} className="marketplace-swatch-dot" style={{ background: c }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="marketplace-result-text">
+                          <div className="marketplace-result-name">
+                            {d.entry.name} <span className="marketplace-result-publisher">by {d.entry.author}</span>
+                          </div>
+                          {d.entry.description && <div className="marketplace-result-desc">{d.entry.description}</div>}
+                          {broken && (
+                            <div className="marketplace-status-error">
+                              {d.error === 'old-version' ? 'Made with an older version of Theme Studio.' : "This link looks broken."}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="marketplace-use-btn"
+                          disabled={broken}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (d.payload) handleRemixClick(d.entry, d.payload);
+                          }}
+                        >
+                          Remix
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="marketplace-preview-pane">
+                  {!activeGalleryEntry && <div className="theme-preview-empty">Hover or tap a theme to preview it here.</div>}
+                  {activeGalleryEntry?.error && (
+                    <div className="theme-preview-empty">
+                      {activeGalleryEntry.error === 'old-version'
+                        ? 'This link was made with an older version of Theme Studio and can\'t be previewed.'
+                        : "Couldn't load a preview — this link looks broken."}
+                    </div>
+                  )}
+                  {activeGalleryEntry?.payload && (
+                    <>
+                      <div className="marketplace-preview-title">{activeGalleryEntry.entry.name}</div>
+                      <ThemePreview
+                        language={language}
+                        code={code}
+                        variant={shareLinkToImportedTheme(activeGalleryEntry.payload).variants[0]}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+              )}
+
+              {decodedGalleryEntries.length > 0 && (
+                <p className="field-hint gallery-submit-footer">
+                  Built a theme you're proud of?{' '}
+                  <a href="https://github.com/2917hs-org/theme-studio/pulls" target="_blank" rel="noreferrer noopener">
+                    Submit it on GitHub
+                  </a>
+                  .
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {pendingRemix && (
+        <ConfirmDialog
+          title={`Remix "${pendingRemix.entry.name}"?`}
+          body={
+            <>
+              This replaces all of your current color assignments and background/text overrides — for{' '}
+              <b>both dark and light</b> — with <b>{pendingRemix.entry.name}</b> by {pendingRemix.entry.author}. This
+              can't be undone.
+            </>
+          }
+          confirmLabel="Remix & replace"
+          danger
+          onConfirm={() => {
+            const { entry, payload, closeAfter } = pendingRemix;
+            setPendingRemix(null);
+            finishRemix(entry, payload, closeAfter);
+          }}
+          onCancel={() => setPendingRemix(null)}
+        />
+      )}
 
       {pendingImport && (
         <ConfirmDialog
@@ -690,9 +924,9 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
           confirmLabel="Import & replace"
           danger
           onConfirm={() => {
-            const { theme, closeAfter } = pendingImport;
+            const { theme, closeAfter, source } = pendingImport;
             setPendingImport(null);
-            finishImport(theme, closeAfter);
+            finishImport(theme, closeAfter, source);
           }}
           onCancel={() => setPendingImport(null)}
         />

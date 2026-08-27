@@ -159,6 +159,7 @@ button {
    the same reason GitHub's own header doesn't follow a repo's theme. */
 
 .app-topbar {
+  position: relative;
   padding: 12px 20px;
   background: #151b23;
   border-bottom: 1px solid #30363d;
@@ -215,11 +216,12 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  height: 28px;
   background: transparent;
   color: #c9d1d9;
   border: 1px solid #30363d;
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
+  padding: 0 10px;
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
@@ -233,51 +235,6 @@ button {
   color: #f0f6fc;
 }
 
-.mode-toggle {
-  display: flex;
-  background: var(--bg-inset);
-  border: 1px solid var(--text-dim);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.mode-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background var(--transition), color var(--transition);
-}
-
-.mode-toggle-btn:hover {
-  color: var(--text);
-}
-
-.mode-toggle-btn-active {
-  background: var(--bg-raised);
-  color: var(--text-strong);
-  box-shadow: 0 0 0 1px var(--text-dim);
-}
-
-/* Same pill toggle as the header's editing-mode control, stretched to fill
-   a full-width field (used by the export panel's "Variants to export"). */
-.mode-toggle-full {
-  width: 100%;
-}
-
-.mode-toggle-full .mode-toggle-btn {
-  flex: 1;
-  justify-content: center;
-}
-
 /* ---------- Preset picker ---------- */
 
 .preset-picker {
@@ -286,7 +243,11 @@ button {
   gap: 12px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  /* Never wraps to a second line, at any width — the "QUICK START" label
+     stays put and the cards scroll horizontally instead (see .preset-list),
+     the same trade-off already used for the import dialog's tab bar. */
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .preset-picker-label {
@@ -301,7 +262,58 @@ button {
 .preset-list {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
+  /* A visible scrollbar sitting right under a row of cards read as a
+     stray line, not a scrollbar — a partially cut-off card at the edge is
+     its own "there's more" cue, the same way a horizontal carousel works,
+     so the scrollbar itself can disappear (still fully scrollable via
+     trackpad/touch/shift+wheel). */
+  scrollbar-width: none;
+}
+
+.preset-list::-webkit-scrollbar {
+  display: none;
+}
+
+.preset-card,
+.preset-action-card {
+  flex-shrink: 0;
+}
+
+/* One cluster of same-category cards, labeled above its own row instead of
+   inline — the whole picker still stays a single horizontally-scrolling
+   line (each cluster is just a column within that row), so it reads as
+   categorized without costing any extra vertical space in the layout. */
+.preset-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.preset-group:not(:first-child) {
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.preset-group-label {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.preset-group-cards {
+  display: flex;
+  gap: 8px;
 }
 
 /* Each card renders in the preset's own colors (inline styles), not the
@@ -366,9 +378,9 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 108px;
-  padding: 8px 12px;
+  gap: 4px;
+  min-width: 80px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-soft);
   background: var(--bg-inset);
@@ -392,7 +404,7 @@ button {
 }
 
 .preset-action-card-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -404,24 +416,36 @@ button {
   gap: 12px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .language-list {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
+  /* Same "no visible scrollbar" treatment as .preset-list — a partially
+     cut-off chip at the edge is its own "there's more" cue. */
+  scrollbar-width: none;
+}
+
+.language-list::-webkit-scrollbar {
+  display: none;
 }
 
 .lang-chip {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 6px;
+  height: 28px;
   background: var(--bg-raised);
   color: var(--text-dim);
   border: 1px solid var(--text-dim);
   border-radius: 14px;
-  padding: 5px 12px 5px 9px;
+  padding: 0 12px 0 9px;
   font-size: 12px;
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
@@ -447,11 +471,11 @@ button {
   color: var(--text-strong);
 }
 
-#tour-regenerate svg {
+#code-regenerate svg {
   transition: transform 400ms ease;
 }
 
-#tour-regenerate:active svg {
+#code-regenerate:active svg {
   transform: rotate(-140deg);
 }
 
@@ -469,10 +493,15 @@ button {
   justify-content: center;
 }
 
-/* Quick Start, the language picker, and the editor all live in one column
-   now — side-pane (a flex sibling here) stretches to match this column's
-   full height by default, so it starts at the very top next to Quick
-   Start instead of only alongside the editor. */
+/* Quick Start and the language picker span the full app width above
+   app-main, so side-pane (a flex sibling of editor-column below) starts
+   aligned with the top of the code editor instead of next to Quick
+   Start. */
+.top-controls {
+  display: flex;
+  flex-direction: column;
+}
+
 .editor-column {
   flex: 1;
   min-width: 0;
@@ -666,45 +695,16 @@ button {
    rather than "anchored." Sitting right after the last section, with any
    leftover space trailing below it, looks intentional in every state. */
 .pinned-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  /* No longer sticky: with the four side-panel sections now an exclusive
+     accordion (see App.tsx's `openSection`), Export theme and Share are
+     ordinary collapsible headers like Inspect/Assigned, always visible in
+     the normal flow — not "always-expanded content that needs pinning to
+     stay reachable" the way they were before. Sticking this to the bottom
+     of a shorter-than-viewport column left a visible gap between wherever
+     the collapsed content actually ended and where the footer glued itself. */
   flex: none;
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
-}
-
-.pinned-footer-section {
-  padding: 14px 16px;
-}
-
-.pinned-footer-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text-dim);
-  margin-bottom: 10px;
-}
-
-.mode-toggle-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.mode-toggle-btn-active .mode-toggle-count {
-  background: var(--accent);
-  color: #fff;
 }
 
 /* ---------- Collapsible side-panel sections ---------- */
@@ -1090,9 +1090,14 @@ button {
   gap: 10px;
 }
 
-.field-label-row .color-controls {
+.field-label-row .color-controls,
+.field-label-row .export-format-select {
   flex: 1;
   min-width: 0;
+}
+
+.field-label-row .field-label-title {
+  flex: none;
 }
 
 .color-native-input {
@@ -1109,11 +1114,12 @@ button {
 .color-text-input {
   flex: 1;
   min-width: 0;
+  height: 30px;
   background: var(--bg-inset);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: var(--text);
-  padding: 6px 8px;
+  padding: 0 8px;
   font-family: ui-monospace, monospace;
   font-size: 12px;
   transition: border-color var(--transition);
@@ -1124,11 +1130,15 @@ button {
 }
 
 .clear-color-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
   background: transparent;
   border: 1px solid var(--text-dim);
   color: var(--text-dim);
   border-radius: var(--radius-sm);
-  padding: 6px 9px;
+  padding: 0 9px;
   font-size: 11px;
   cursor: pointer;
   flex: none;
@@ -1154,12 +1164,60 @@ button {
 
 /* ---------- Export panel ---------- */
 
+/* The "what am I about to export" summary — sits right under the
+   collapsible section's own header, so it gets a little breathing room of
+   its own instead of butting up against it the way a plain .field-label
+   would. */
+.export-theme-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  margin-bottom: 16px;
+}
+
+.export-theme-summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.export-theme-summary-key {
+  flex: none;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.export-theme-summary-sep {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.export-theme-summary-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
 .field-label {
   display: flex;
   flex-direction: column;
   gap: 5px;
   color: var(--text-dim);
   margin-bottom: 14px;
+}
+
+/* Same weight/size as the section headings above each panel ("Mode",
+   "Export theme", "Share") — a field label sitting right under one of
+   those looked noticeably lighter/smaller by comparison otherwise. */
+.field-label-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
 }
 
 .field-label input {
@@ -1207,6 +1265,13 @@ button {
   margin-bottom: 6px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.assignments-summary-left {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 
@@ -1231,8 +1296,6 @@ button {
   list-style: none;
   margin: 0 0 14px 0;
   padding: 0;
-  max-height: 240px;
-  overflow-y: auto;
 }
 
 .assignments-list li {
@@ -1305,34 +1368,21 @@ button {
 .clear-all-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   background: transparent;
-  border: 1px solid var(--text-dim);
+  border: none;
   color: var(--text-dim);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: 11.5px;
   cursor: pointer;
-  margin-bottom: 12px;
-  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  line-height: 1;
+  flex: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background var(--transition), color var(--transition);
 }
 
 .clear-all-btn:hover {
   color: var(--danger-text-strong);
-  border-color: rgba(244, 135, 113, 0.4);
-  background: rgba(244, 135, 113, 0.08);
-}
-
-.clear-all-btn-confirming {
-  color: #fff;
-  background: var(--danger-solid-bg);
-  border-color: var(--danger-solid-border);
-}
-
-.clear-all-btn-confirming:hover {
-  color: #fff;
-  background: var(--danger-solid-bg-hover);
-  border-color: var(--danger-solid-border);
+  background: rgba(244, 135, 113, 0.1);
 }
 
 .export-name-input {
@@ -1352,34 +1402,21 @@ button {
   border-color: var(--accent);
 }
 
-.export-selected-themes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.export-selected-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.export-format-select {
+  width: 100%;
+  height: 34px;
   background: var(--bg-inset);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
-  padding: 3px 8px;
-  font-size: 11px;
   color: var(--text);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 0 9px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color var(--transition);
 }
 
-.export-selected-chip-kind {
-  color: var(--text-faint);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+.export-format-select:focus {
+  border-color: var(--accent);
 }
 
 .export-actions {
@@ -1436,51 +1473,45 @@ button {
 /* ---------- Toast ---------- */
 
 .toast {
-  position: fixed;
+  /* Anchored to .app-topbar (position: relative) and centered in it —
+     equidistant from the brand on the left and the Tour/Reset controls
+     on the right, rather than floating over the editor below. */
+  position: absolute;
   left: 50%;
-  /* Below the topbar (~56px), not at the bottom — the bottom edge sits
-     right behind the Monaco editor, whose background is whatever preset
-     is active (Tokyo Night's #1a1b26, One Dark Pro's #282c34, ...), so a
-     dark pill there had almost nothing to visually separate it from the
-     page underneath. Up here it's consistently over the topbar's own
-     fixed dark chrome instead of a color the user is actively editing. */
-  top: 72px;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--toast-bg);
-  color: var(--toast-text);
-  /* An accent border, not --toast-border (a dark neutral barely a shade
-     off from --toast-bg itself) — that pairing gave the pill almost no
-     visible edge of its own, so on a dark background the whole thing
-     read as bare floating text rather than a distinct notification.
-     A bright, theme-independent accent line stays visible against any
-     editor background, dark or light. */
-  border: 1px solid var(--accent);
+  /* The topbar is fixed dark chrome (#151b23) regardless of app theme, so
+     the toast is styled light on purpose rather than via the --toast-*
+     tokens (which follow data-app-theme and can land dark-on-dark) — a
+     light pill is what actually reads as a distinct notification here. */
+  background: #f6f8fa;
+  color: #1f2328;
+  border: 1px solid #d0d7de;
   border-radius: 999px;
   padding: 9px 16px;
   font-size: 12.5px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(0, 0, 0, 0.15);
   z-index: 50;
   animation: toast-in 220ms ease;
-  max-width: min(520px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
 }
 
 .toast-icon {
-  color: #7fb8f0;
+  color: #0969da;
   flex: none;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-8px);
+    transform: translate(-50%, -50%) translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translate(-50%, -50%) translateY(0);
   }
 }
 
@@ -1610,7 +1641,118 @@ button {
   line-height: 1.4;
 }
 
+/* ---------- One-click install command ---------- */
+
+.install-command-block {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.install-command-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.install-command-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.install-command-code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  user-select: all;
+}
+
+.install-command-copy-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.install-command-copy-btn:hover {
+  background: var(--hover-bg);
+}
+
 /* ---------- Share panel ---------- */
+
+/* The two share mechanisms (a plain link vs. posting to a platform) are
+   visually grouped and sub-labeled so the relationship between them —
+   "post to social" is just the same link, handed to a platform — reads at
+   a glance instead of looking like two unrelated rows of controls. */
+.share-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-group + .share-group {
+  margin-top: 14px;
+}
+
+.share-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.share-link-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--text-dim);
+  background: var(--bg-inset);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.share-link-btn:hover {
+  background: var(--hover-bg);
+}
+
+.share-link-fallback {
+  width: 100%;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
 
 .share-actions {
   display: flex;
@@ -1622,8 +1764,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   /* --border/--border-soft are too pale in light mode and nearly invisible
      against --bg-panel in dark mode — --text-dim reads as a clearly visible
@@ -1821,12 +1963,19 @@ button {
   padding: 14px 16px 0;
   flex: none;
   border-bottom: 1px solid var(--border);
+  /* Four tabs is a tight fit at the narrow (Upload) dialog width — this is
+     a defensive fallback (scroll, don't wrap or clip) for a longer label,
+     a wider font, or a future fifth tab, not something the common case
+     should ever need. */
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .import-dialog-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -1988,6 +2137,17 @@ button {
 
 .marketplace-status-error {
   color: var(--danger-text-strong);
+}
+
+.gallery-empty-state {
+  padding: 40px 16px;
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.gallery-submit-footer {
+  margin-top: 10px;
+  text-align: center;
 }
 
 .marketplace-result {
