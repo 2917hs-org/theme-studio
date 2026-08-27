@@ -18,7 +18,7 @@ const STEPS: TourStep[] = [
   {
     targetId: null,
     title: 'Welcome to VS Code Theme Studio',
-    body: "A 30-second tour of how this works: click real code, assign real colors, export a real theme. Skip anytime — nothing here is required.",
+    body: "A quick tour of how this works: click real code, assign real colors, export or share a real theme. Skip anytime — nothing here is required.",
   },
   {
     targetId: 'tour-quick-start',
@@ -34,6 +34,11 @@ const STEPS: TourStep[] = [
     targetId: 'tour-search',
     title: 'Or fork one from the Marketplace',
     body: 'Search real, published VS Code themes and start editing a copy immediately — no download, no account. The same dialog has an Icon Theme tab to pair a matching file icon theme, too.',
+  },
+  {
+    targetId: 'tour-gallery',
+    title: 'Or remix one from the Gallery',
+    body: "Browse themes other builders made here and start editing a copy — each one's just a shared link, credited to whoever submitted it.",
   },
   {
     targetId: 'code-regenerate',
@@ -58,7 +63,12 @@ const STEPS: TourStep[] = [
   {
     targetId: 'tour-export',
     title: 'Export a real theme',
-    body: "When you're happy, download an installable .vsix bundling both modes, or copy a one-line command to install it straight into VS Code.",
+    body: "When you're happy, export it — an installable VS Code .vsix bundling both modes, or a single-file theme for Windows Terminal, iTerm2, or Zed. Pick a format from the dropdown.",
+  },
+  {
+    targetId: 'tour-share',
+    title: 'Share what you built',
+    body: "Copy a link that loads this exact theme for anyone — colors, name, paired icon theme, all of it. No account, no export required first.",
   },
   {
     targetId: 'tour-reset',
