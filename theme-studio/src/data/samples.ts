@@ -1372,6 +1372,400 @@ echo ($stream->first()["${p.field}"] ?? "none") . "\\n";
 
 export const php: SampleGenerator = (seed) => variantOf(seed, [phpA, phpB, phpC]);
 
+// ---------- C ----------
+
+const cA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_${p.entity.toUpperCase()} ${p.count}
+
+/* A single tracked record. */
+typedef struct {
+    int id;
+    char ${p.field}[64];
+} ${p.entity};
+
+${p.entity} *${p.verb}_${p.entityLower}(int id, const char *${p.field}) {
+    ${p.entity} *item = malloc(sizeof(${p.entity}));
+    if (item == NULL) {
+        return NULL;
+    }
+    item->id = id;
+    strncpy(item->${p.field}, ${p.field}, sizeof(item->${p.field}) - 1);
+    return item;
+}
+
+int main(void) {
+    // Build one record and print it.
+    ${p.entity} *item = ${p.verb}_${p.entityLower}(1, "${p.word}");
+    if (item != NULL) {
+        printf("id=%d ${p.field}=%s\\n", item->id, item->${p.field});
+        free(item);
+    }
+    return 0;
+}
+`;
+};
+
+const cB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+
+enum ${p.entity}Status {
+    STATUS_PENDING,
+    STATUS_ACTIVE,
+    STATUS_ARCHIVED
+};
+
+// Returns a human-readable label for a status value.
+const char *status_label(enum ${p.entity}Status status) {
+    switch (status) {
+        case STATUS_PENDING:
+            return "waiting";
+        case STATUS_ACTIVE:
+            return "in progress";
+        default:
+            return "done";
+    }
+}
+
+int main(void) {
+    enum ${p.entity}Status statuses[${p.count}];
+    for (int i = 0; i < ${p.count}; i++) {
+        statuses[i] = (i % 2 == 0) ? STATUS_ACTIVE : STATUS_PENDING;
+    }
+
+    for (int i = 0; i < ${p.count}; i++) {
+        printf("%d: %s\\n", i, status_label(statuses[i]));
+    }
+    return 0;
+}
+`;
+};
+
+const cC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+
+typedef struct ${p.entity} {
+    int id;
+    double ${p.field2};
+    void (*${p.verb})(struct ${p.entity} *self);
+} ${p.entity};
+
+static void ${p.verb}_impl(${p.entity} *self) {
+    self->${p.field2} *= 1.1;
+    printf("${p.verb} -> %.2f\\n", self->${p.field2});
+}
+
+static const ${p.entity} DEFAULT_${p.entity.toUpperCase()} = {
+    .id = 0,
+    .${p.field2} = 0.0,
+    .${p.verb} = ${p.verb}_impl,
+};
+
+int main(void) {
+    ${p.entity} item = DEFAULT_${p.entity.toUpperCase()};
+    item.id = 42;
+    item.${p.field2} = 3.5;
+    item.${p.verb}(&item);
+    return 0;
+}
+`;
+};
+
+export const c: SampleGenerator = (seed) => variantOf(seed, [cA, cB, cC]);
+
+// ---------- PowerShell ----------
+
+const powershellA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `# Fetches and formats ${p.entityLower} records for reporting.
+function Get-${p.entity} {
+    param(
+        [int]$Id,
+        [string]$${cap(p.field)} = "${p.word}"
+    )
+
+    $record = @{
+        Id      = $Id
+        ${cap(p.field)} = $${cap(p.field)}
+        Created = Get-Date
+    }
+
+    Write-Host "Fetched $($record.Id): $($record.${cap(p.field)})"
+    return $record
+}
+
+$items = 1..${p.count} | ForEach-Object {
+    Get-${p.entity} -Id $_ -${cap(p.field)} "${p.word}-$_"
+}
+
+$items | Where-Object { $_.Id % 2 -eq 0 } | Format-Table -AutoSize
+`;
+};
+
+const powershellB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `enum ${p.entity}Status {
+    Pending
+    Active
+    Archived
+}
+
+class ${p.entity} {
+    [int]$Id
+    [string]$${cap(p.field)}
+    [${p.entity}Status]$Status = [${p.entity}Status]::Pending
+
+    ${p.entity}([int]$id, [string]$${p.field}) {
+        $this.Id = $id
+        $this.${cap(p.field)} = $${p.field}
+    }
+
+    [void] ${cap(p.verb)}() {
+        $this.Status = [${p.entity}Status]::Active
+        Write-Host "${cap(p.verb)}d $($this.Id)"
+    }
+}
+
+$item = [${p.entity}]::new(1, "${p.word}")
+$item.${cap(p.verb)}()
+`;
+};
+
+const powershellC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `function Invoke-${p.entity}Sync {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int[]]$Ids
+    )
+
+    $results = @()
+    foreach ($id in $Ids) {
+        try {
+            if ($id -lt 0) {
+                throw "Invalid id: $id"
+            }
+            $results += [PSCustomObject]@{
+                Id     = $id
+                Status = "${p.word}"
+            }
+        }
+        catch {
+            Write-Warning "Skipping $($id): $($_.Exception.Message)"
+        }
+    }
+    return $results
+}
+
+$params = @{
+    Ids = 1..${p.count}
+}
+
+Invoke-${p.entity}Sync @params | ConvertTo-Json
+`;
+};
+
+export const powershell: SampleGenerator = (seed) => variantOf(seed, [powershellA, powershellB, powershellC]);
+
+// ---------- Kotlin ----------
+
+const kotlinA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+enum class ${p.entity}Status {
+    PENDING, ACTIVE, ARCHIVED
+}
+
+data class ${p.entity}(
+    val id: Int,
+    val ${p.field}: String,
+    val status: ${p.entity}Status = ${p.entity}Status.PENDING
+)
+
+fun ${p.entity}.${p.verb}(): ${p.entity} = copy(status = ${p.entity}Status.ACTIVE)
+
+fun main() {
+    val items = (1..${p.count}).map { ${p.entity}(it, "${p.word}-$it") }
+    val active = items.map { it.${p.verb}() }.filter { it.status == ${p.entity}Status.ACTIVE }
+
+    println("\${active.size} of \${items.size} active")
+}
+`;
+};
+
+const kotlinB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+sealed class ${p.entity}Event {
+    data class ${cap(p.verb)}ed(val id: Int) : ${p.entity}Event()
+    object Failed : ${p.entity}Event()
+}
+
+class ${p.entity}Processor {
+    companion object {
+        const val MAX_RETRIES = ${p.count}
+    }
+
+    fun handle(event: ${p.entity}Event): String = when (event) {
+        is ${p.entity}Event.${cap(p.verb)}ed -> "Handled #\${event.id}"
+        ${p.entity}Event.Failed -> "Failed after $MAX_RETRIES retries"
+    }
+}
+
+fun main() {
+    val processor = ${p.entity}Processor()
+    println(processor.handle(${p.entity}Event.${cap(p.verb)}ed(1)))
+    println(processor.handle(${p.entity}Event.Failed))
+}
+`;
+};
+
+const kotlinC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+interface Repository<T> {
+    fun findById(id: Int): T?
+    fun ${p.verb}(item: T)
+}
+
+class ${p.entity}Repository : Repository<${p.entity}> {
+    private val items = mutableMapOf<Int, ${p.entity}>()
+
+    override fun findById(id: Int): ${p.entity}? = items[id]
+
+    override fun ${p.verb}(item: ${p.entity}) {
+        items[item.id] = item
+    }
+}
+
+data class ${p.entity}(val id: Int, val ${p.field}: String)
+
+fun <T> describe(items: List<T>): String = "\${items.size} items"
+
+fun main() {
+    val repo = ${p.entity}Repository()
+    repeat(${p.count}) { i ->
+        repo.${p.verb}(${p.entity}(i, "${p.word}"))
+    }
+    println(describe((0 until ${p.count}).mapNotNull { repo.findById(it) }))
+}
+`;
+};
+
+export const kotlin: SampleGenerator = (seed) => variantOf(seed, [kotlinA, kotlinB, kotlinC]);
+
+// ---------- Dart ----------
+
+const dartA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `class ${p.entity} {
+  final int id;
+  final String ${p.field};
+  bool isActive;
+
+  ${p.entity}({required this.id, required this.${p.field}, this.isActive = false});
+
+  @override
+  String toString() => 'Item #$id: $${p.field}';
+}
+
+Future<${p.entity}> ${p.verb}Async(int id) async {
+  await Future.delayed(const Duration(milliseconds: 10));
+  return ${p.entity}(id: id, ${p.field}: '${p.word}', isActive: id.isEven);
+}
+
+void main() async {
+  final items = <${p.entity}>[];
+  for (var i = 0; i < ${p.count}; i++) {
+    items.add(await ${p.verb}Async(i));
+  }
+
+  final active = items.where((item) => item.isActive).toList();
+  print('\${active.length} of \${items.length} active');
+}
+`;
+};
+
+const dartB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `enum ${p.entity}Status { pending, active, archived }
+
+String describeStatus(${p.entity}Status status) {
+  switch (status) {
+    case ${p.entity}Status.pending:
+      return 'waiting';
+    case ${p.entity}Status.active:
+      return 'in progress';
+    case ${p.entity}Status.archived:
+      return 'done';
+  }
+}
+
+void main() {
+  final items = <int, ${p.entity}Status>{
+    for (var i = 0; i < ${p.count}; i++)
+      i: (i.isEven ? ${p.entity}Status.active : ${p.entity}Status.pending),
+  };
+
+  items.forEach((id, status) {
+    print('#$id -> \${describeStatus(status)}');
+  });
+}
+`;
+};
+
+const dartC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `mixin Loggable {
+  void log(String message) => print('[LOG] $message');
+}
+
+abstract class Repository<T> {
+  T? findById(int id);
+  void ${p.verb}(T item);
+}
+
+class ${p.entity} {
+  final int id;
+  final String ${p.field};
+  const ${p.entity}(this.id, this.${p.field});
+}
+
+class ${p.entity}Repository extends Object with Loggable implements Repository<${p.entity}> {
+  final Map<int, ${p.entity}> _items = {};
+
+  @override
+  ${p.entity}? findById(int id) => _items[id];
+
+  @override
+  void ${p.verb}(${p.entity} item) {
+    _items[item.id] = item;
+    log('${cap(p.verb)}d #\${item.id}');
+  }
+}
+
+void main() {
+  final repo = ${p.entity}Repository();
+  for (var i = 0; i < ${p.count}; i++) {
+    repo.${p.verb}(${p.entity}(i, '${p.word}'));
+  }
+  print('Total: \${repo._items.length}');
+}
+`;
+};
+
+export const dart: SampleGenerator = (seed) => variantOf(seed, [dartA, dartB, dartC]);
+
 // ---------- HTML ----------
 
 const htmlA: SampleGenerator = (seed) => {

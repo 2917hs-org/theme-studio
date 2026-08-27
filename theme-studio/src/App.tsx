@@ -290,12 +290,14 @@ function AppInner() {
         {toastMessage && <Toast message={toastMessage} />}
       </header>
 
+      <div className="top-controls">
+        <PresetPicker onImported={handleThemeApplied} onApplied={handleThemeApplied} language={language} code={code} />
+
+        <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
+      </div>
+
       <main className="app-main">
         <div className="editor-column">
-          <PresetPicker onImported={handleThemeApplied} onApplied={handleThemeApplied} language={language} code={code} />
-
-          <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
-
           <div id="tour-editor" className="editor-pane">
             <div className="editor-toolbar">
               <button

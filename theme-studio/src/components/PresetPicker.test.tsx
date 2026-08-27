@@ -77,11 +77,11 @@ describe('PresetPicker', () => {
     await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
 
-    // One Dark Pro is also a dark preset — applying it now would overwrite Tokyo Night's colors.
-    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    // Night Owl is also a dark preset — applying it now would overwrite Tokyo Night's colors.
+    await user.click(screen.getByTitle(/^Apply the Night Owl preset/))
     const dialog = screen.getByRole('alertdialog', { name: 'Replace your current theme?' })
     expect(dialog).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('One Dark Pro')
+    expect(dialog).toHaveTextContent('Night Owl')
     // Nothing applied yet — still Tokyo Night's colors, untouched until confirmed.
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
 
@@ -97,12 +97,12 @@ describe('PresetPicker', () => {
     setup()
 
     await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
-    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    await user.click(screen.getByTitle(/^Apply the Night Owl preset/))
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    // Still Tokyo Night — One Dark Pro was never applied.
+    // Still Tokyo Night — Night Owl was never applied.
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
   })
 
@@ -149,12 +149,12 @@ describe('PresetPicker onApplied notification', () => {
     await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     onApplied.mockClear()
 
-    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    await user.click(screen.getByTitle(/^Apply the Night Owl preset/))
     expect(onApplied).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Apply preset' }))
     expect(onApplied).toHaveBeenCalledTimes(1)
-    expect(onApplied).toHaveBeenCalledWith(expect.stringContaining('One Dark Pro'))
+    expect(onApplied).toHaveBeenCalledWith(expect.stringContaining('Night Owl'))
   })
 
   it('does not report anything when the confirm dialog is cancelled', async () => {
@@ -164,7 +164,7 @@ describe('PresetPicker onApplied notification', () => {
     await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
     onApplied.mockClear()
 
-    await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
+    await user.click(screen.getByTitle(/^Apply the Night Owl preset/))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(onApplied).not.toHaveBeenCalled()
   })
