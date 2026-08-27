@@ -26,8 +26,17 @@ function Harness({ onApplied }: { onApplied?: (message: string) => void }) {
       >
         Color a type token by hand
       </button>
+      <button
+        onClick={() => {
+          setMode('light')
+          setColor('type', '#123456', 'light')
+        }}
+      >
+        Color a light type token by hand
+      </button>
       <div data-testid="dark-count">{assignmentsFor('dark').size}</div>
       <div data-testid="has-type">{String(assignmentsFor('dark').has('type'))}</div>
+      <div data-testid="light-count">{assignmentsFor('light').size}</div>
       <PresetPicker onApplied={onApplied} language={LANGUAGES[0]} code="" />
     </div>
   )
@@ -70,7 +79,7 @@ describe('PresetPicker', () => {
 
     // One Dark Pro is also a dark preset — applying it now would overwrite Tokyo Night's colors.
     await user.click(screen.getByTitle(/^Apply the One Dark Pro preset/))
-    const dialog = screen.getByRole('alertdialog', { name: 'Replace your dark theme?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Replace your current theme?' })
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveTextContent('One Dark Pro')
     // Nothing applied yet — still Tokyo Night's colors, untouched until confirmed.
@@ -94,6 +103,22 @@ describe('PresetPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     // Still Tokyo Night — One Dark Pro was never applied.
+    expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
+  })
+
+  it('applying a preset also clears the other mode — only one theme is ever in progress at a time', async () => {
+    const user = userEvent.setup()
+    setup()
+
+    await user.click(screen.getByRole('button', { name: 'Color a light type token by hand' }))
+    expect(screen.getByTestId('light-count')).toHaveTextContent('1')
+
+    // Light mode has hand-colored work, so applying a dark preset opens the confirm dialog.
+    await user.click(screen.getByTitle(/^Apply the Tokyo Night preset/))
+    await user.click(screen.getByRole('button', { name: 'Apply preset' }))
+
+    // Tokyo Night only defines a dark variant — light must be wiped, not left mixed in.
+    expect(screen.getByTestId('light-count')).toHaveTextContent('0')
     expect(screen.getByTestId('dark-count')).toHaveTextContent(String(TOTAL_PRESET_SCOPES))
   })
 

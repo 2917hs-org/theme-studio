@@ -3,6 +3,13 @@ import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { buildVsixBlobSync, composeAutoThemeName, downloadBlob, slugify } from '../vsix/buildVsix';
 import { detectOS, installCommandFor } from '../vsix/installCommand';
+import {
+  buildSingleFileExport,
+  EXPORT_FORMATS,
+  hasEnoughForSingleFileExport,
+  isSingleFileFormat,
+  type ExportFormatId,
+} from '../export/exportFormats';
 import { track } from '../analytics/track';
 import { CheckCircleIcon, CopyIcon, ExportIcon } from './icons';
 
@@ -34,6 +41,7 @@ export function ExportPanel() {
   const [copyCommandError, setCopyCommandError] = useState(false);
   // The browser doesn't change mid-session, so this only ever needs computing once.
   const [detectedOS] = useState(detectOS);
+  const [format, setFormat] = useState<ExportFormatId>('vscode');
 
   useEffect(
     () => () => {
@@ -89,6 +97,14 @@ export function ExportPanel() {
 
   const trimmedThemeName = themeName.trim();
 
+  // The non-VS Code targets (Windows Terminal, iTerm2, Zed) are single-file,
+  // single-mode exports — unlike the VSIX's Dark+Light bundling, there's
+  // nothing to merge across modes, so they always describe whatever the
+  // *currently active* mode has colored.
+  const currentAssignments = assignmentsFor(mode);
+  const currentChrome = chromeFor(mode);
+  const singleFileFormatReady = isSingleFileFormat(format) && hasEnoughForSingleFileExport(mode, currentAssignments, currentChrome);
+
   // Synchronous end to end — Safari only honors the anchor `download`
   // attribute on a blob: URL when the click that triggers it runs with no
   // async gap beforehand, so nothing here may sit behind an `await`.
@@ -118,11 +134,27 @@ export function ExportPanel() {
     setExportError(null);
     setIsExporting(true);
     track('export_clicked');
+    track('export_format', { format });
     try {
-      const { blob, filename } = buildCurrentVsix();
+      const { blob, filename } = isSingleFileFormat(format)
+        ? (() => {
+            const { content, filename: singleFileName } = buildSingleFileExport(
+              format,
+              trimmedThemeName,
+              mode,
+              currentAssignments,
+              currentChrome,
+            );
+            // Same opaque MIME buildVsix.ts uses for the VSIX itself — an
+            // explicit `download` attribute already forces a save in every
+            // evergreen browser, but Safari in particular is more reliable
+            // with a MIME type it has no built-in viewer for.
+            return { blob: new Blob([content], { type: 'application/octet-stream' }), filename: singleFileName };
+          })()
+        : buildCurrentVsix();
       downloadBlob(blob, filename);
       setJustExported(true);
-      setLastExportedFilename(filename);
+      setLastExportedFilename(format === 'vscode' ? filename : null);
       setJustCopiedCommand(false);
       setCopyCommandError(false);
       // Only fires once the blob actually built and the download call ran —
@@ -132,7 +164,7 @@ export function ExportPanel() {
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
       exportTimeoutRef.current = setTimeout(() => setJustExported(false), 2800);
     } catch (err) {
-      console.error('Failed to generate VSIX:', err);
+      console.error('Failed to generate export:', err);
       setExportError('Something went wrong generating the file. Please try again.');
       track('export_failed');
     } finally {
@@ -155,31 +187,62 @@ export function ExportPanel() {
     }
   }
 
-  const hasColors = modesToExport.length > 0;
+  const singleFile = isSingleFileFormat(format);
+  const currentModeHasAnyColor = currentAssignments.size > 0 || Boolean(currentChrome.background || currentChrome.foreground);
+  const hasColors = singleFile ? currentModeHasAnyColor : modesToExport.length > 0;
   // Blocks export on a blank/whitespace-only name rather than letting
   // `slugify`'s own 'custom-theme' fallback silently kick in — that
   // fallback exists for callers outside this UI (tests, buildVsixBlobSync
   // used directly), not to hand someone a file named after nothing they
   // typed while the box in front of them still shows empty.
   const hasValidName = trimmedThemeName.length > 0;
-  const canExport = hasColors && hasValidName;
+  const canExport = singleFile ? hasColors && hasValidName && singleFileFormatReady : hasColors && hasValidName;
+  const formatLabel = EXPORT_FORMATS.find((f) => f.id === format)?.label ?? format;
+  const singleFileFilename =
+    singleFile && hasValidName ? buildSingleFileExport(format, trimmedThemeName, mode, currentAssignments, currentChrome).filename : null;
+
+  // Falls back to a "Custom Theme" label rather than leaving this row
+  // blank — nothing was picked from Quick Start/Marketplace/Gallery, but
+  // whatever's been hand-colored is still *a* theme worth naming as such.
+  const displayProductThemeName = productThemeName ?? 'Custom Theme';
+  const iconThemeLabel = pairedIconTheme ? pairedIconTheme.displayName : 'None';
 
   return (
     <>
-      {(productThemeName || pairedIconTheme) && (
-        <div className="export-selected-themes">
-          {productThemeName && (
-            <span className="export-selected-chip">
-              <span className="export-selected-chip-kind">Theme</span> {productThemeName}
-            </span>
-          )}
-          {pairedIconTheme && (
-            <span className="export-selected-chip">
-              <span className="export-selected-chip-kind">Icons</span> {pairedIconTheme.displayName}
-            </span>
-          )}
+      <div className="export-theme-summary">
+        <div className="export-theme-summary-row">
+          <span className="export-theme-summary-key">Product Theme</span>
+          <span className="export-theme-summary-sep">:</span>
+          <span className="export-theme-summary-value" title={displayProductThemeName}>
+            {displayProductThemeName}
+          </span>
         </div>
-      )}
+        <div className="export-theme-summary-row">
+          <span className="export-theme-summary-key">Icon Theme</span>
+          <span className="export-theme-summary-sep">:</span>
+          <span className="export-theme-summary-value" title={iconThemeLabel}>
+            {iconThemeLabel}
+          </span>
+        </div>
+      </div>
+
+      <label className="field-label">
+        <div className="field-label-row">
+          <span className="field-label-title">Format</span>
+          <select
+            className="export-format-select"
+            value={format}
+            onChange={(e) => setFormat(e.target.value as ExportFormatId)}
+            aria-label="Export format"
+          >
+            {EXPORT_FORMATS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </label>
 
       <div className="export-actions">
         <input
@@ -214,27 +277,41 @@ export function ExportPanel() {
       </div>
 
       <div className="export-hints">
-        <span className={`field-hint${hasColors && !hasValidName ? ' field-hint-error' : ''}`}>
+        <span className={`field-hint${hasColors && (!hasValidName || (singleFile && !singleFileFormatReady)) ? ' field-hint-error' : ''}`}>
           {!hasColors
             ? 'Color at least one token to enable export.'
-            : !hasValidName
-              ? 'Give your theme a name to enable export.'
-              : `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`}
+            : singleFile && !singleFileFormatReady
+              ? `Color a few more tokens — a keyword, a string, a function — for a coherent ${formatLabel} palette.`
+              : !hasValidName
+                ? 'Give your theme a name to enable export.'
+                : singleFile
+                  ? `Exporting ${mode === 'dark' ? 'Dark' : 'Light'} as ${formatLabel} — whatever you've colored so far.`
+                  : `Exporting ${exportModes.map((m) => (m === 'dark' ? 'Dark' : 'Light')).join(' + ')}${exportModes.length > 1 ? ' as one theme' : ''} — whatever you've colored so far.`}
         </span>
         {hasValidName && (
           <span className="field-hint export-filename-hint">
-            Downloads as <span className="export-filename">{slugify(trimmedThemeName)}.vsix</span>
+            Downloads as <span className="export-filename">{singleFile ? singleFileFilename : `${slugify(trimmedThemeName)}.vsix`}</span>
           </span>
         )}
-        {pairedIconTheme && (
+        {!singleFile && pairedIconTheme && (
           <span className="field-hint">Also installs <b>{pairedIconTheme.displayName}</b> as a recommended icon theme.</span>
         )}
-        <span className="field-hint">Go to VS Code: Extensions → "…" menu → Install from VSIX…</span>
+        <span className="field-hint">
+          {format === 'vscode' && 'Go to VS Code: Extensions → "…" menu → Install from VSIX…'}
+          {format === 'windows-terminal' && 'Paste the downloaded JSON into Windows Terminal\'s settings.json, inside the "schemes" array.'}
+          {format === 'iterm2' && 'In iTerm2: Preferences → Profiles → Colors → Color Presets… → Import…, then select the downloaded file.'}
+          {format === 'zed' && (
+            <>
+              In Zed: save the file to <span className="export-filename">~/.config/zed/themes/</span>, then pick it from the theme
+              selector.
+            </>
+          )}
+        </span>
       </div>
 
       {exportError && <div className="inspector-error">{exportError}</div>}
 
-      {lastExportedFilename && (
+      {format === 'vscode' && lastExportedFilename && (
         <div className="install-command-block">
           <div className="install-command-label">Or install it with one command</div>
           <div className="install-command-row">

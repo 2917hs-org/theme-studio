@@ -5,7 +5,7 @@ import { useAssignments } from '../store/useAssignments';
 import { track } from '../analytics/track';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { ImportTab } from './ImportThemeDialog';
-import { SearchIcon, UploadIcon } from './icons';
+import { GridIcon, SearchIcon, UploadIcon } from './icons';
 import type { LanguageDef } from '../data/languages';
 
 // Pulls in vscode-textmate + jsonc-parser (grammar tokenizing for the
@@ -26,7 +26,7 @@ interface PresetPickerProps {
 }
 
 export function PresetPicker({ onImported, onApplied, language, code }: PresetPickerProps) {
-  const { setMode, chromeFor, assignmentsFor, setChrome, replaceAssignments, setProductThemeName } = useAssignments();
+  const { chromeFor, assignmentsFor, importTheme } = useAssignments();
   // Which dialog tab to land on — null means the dialog is closed. Two
   // separate buttons below drive this so "Search Marketplace" is its own
   // visible entry point rather than hidden behind "Import theme" first.
@@ -39,13 +39,6 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
   const [pendingPreset, setPendingPreset] = useState<ThemePreset | null>(null);
 
   function applyPreset(preset: ThemePreset) {
-    setMode(preset.mode);
-    setProductThemeName(preset.name);
-    setChrome(preset.mode, { background: preset.background, foreground: preset.text });
-    // A full clean swap to exactly what this preset defines, not a merge —
-    // replaceAssignments drops every scope the mode had before (including
-    // ones this preset doesn't even mention, like a token colored by hand
-    // in the editor), instead of leaving them mixed in with the new theme.
     // Every role in ROLE_SCOPES expands to its field's color on `preset` —
     // ~20 authored colors fan out into ~160 real scope assignments, the
     // same "small palette, many scopes" shape a published theme has.
@@ -54,22 +47,31 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
       const color = preset[field];
       for (const scope of scopes) next.set(scope, color);
     }
-    replaceAssignments(preset.mode, next);
+    // Only one theme is ever in progress at a time — applying a preset
+    // replaces the whole theme-in-progress (both modes), the same as
+    // importing or forking a Marketplace theme, rather than merging into
+    // whatever was already there.
+    importTheme({
+      name: preset.name,
+      variants: [{ mode: preset.mode, chrome: { background: preset.background, foreground: preset.text }, assignments: next }],
+    });
     onApplied?.(`Applied "${preset.name}".`);
     track('preset_applied', { preset: preset.id });
   }
 
-  // Applying a preset replaces every color in that mode, not just the
-  // handful it defines — so "is there anything to lose" is just "does this
-  // mode already have anything at all", the same test Reset uses.
-  function wouldOverwrite(preset: ThemePreset): boolean {
-    const currentChrome = chromeFor(preset.mode);
-    if (currentChrome.background || currentChrome.foreground) return true;
-    return assignmentsFor(preset.mode).size > 0;
+  // Applying a preset replaces the entire theme-in-progress, not just the
+  // preset's own mode — so "is there anything to lose" means either mode
+  // already has something, the same test the Marketplace/Gallery import
+  // flows use.
+  function wouldOverwrite(): boolean {
+    return (['dark', 'light'] as const).some((m) => {
+      const c = chromeFor(m);
+      return assignmentsFor(m).size > 0 || Boolean(c.background) || Boolean(c.foreground);
+    });
   }
 
   function handlePresetClick(preset: ThemePreset) {
-    if (wouldOverwrite(preset)) {
+    if (wouldOverwrite()) {
       setPendingPreset(preset);
       return;
     }
@@ -114,7 +116,7 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
           onClick={() => setImportTab('upload')}
           title="Import a VS Code theme file (.json or .vsix) to tweak and export as your own"
         >
-          <UploadIcon size={18} />
+          <UploadIcon size={15} />
           <span className="preset-action-card-label">Import</span>
         </button>
         <button
@@ -124,8 +126,18 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
           onClick={() => setImportTab('search')}
           title="Search the VS Code Marketplace for a theme to tweak and export as your own — also where you pair an icon theme"
         >
-          <SearchIcon size={18} />
+          <SearchIcon size={15} />
           <span className="preset-action-card-label">Marketplace</span>
+        </button>
+        <button
+          id="tour-gallery"
+          type="button"
+          className="preset-action-card"
+          onClick={() => setImportTab('gallery')}
+          title="Browse themes other people built here and remix one as your own"
+        >
+          <GridIcon size={15} />
+          <span className="preset-action-card-label">Gallery</span>
         </button>
       </div>
 
@@ -149,11 +161,11 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
 
       {pendingPreset && (
         <ConfirmDialog
-          title={`Replace your ${pendingPreset.mode} theme?`}
+          title="Replace your current theme?"
           body={
             <>
-              Applying <b>{pendingPreset.name}</b> replaces every color you've assigned in {pendingPreset.mode} mode,
-              plus its background, with this preset's colors. This can't be undone.
+              Applying <b>{pendingPreset.name}</b> replaces every color assignment and background you've set — for{' '}
+              <b>both dark and light</b> — with this preset's colors. This can't be undone.
             </>
           }
           confirmLabel="Apply preset"

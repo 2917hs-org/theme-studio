@@ -52,8 +52,8 @@ const STEPS: TourStep[] = [
   },
   {
     targetId: 'tour-mode-switcher',
-    title: 'Dark and Light, independently',
-    body: "Every color you assign is tracked per mode. Pick a background color here and the mode switches to match it automatically.",
+    title: 'Set a background color',
+    body: "The code snippet's own background — separate from your OS/browser theme. Pick a dark or light color and the rest follows automatically.",
   },
   {
     targetId: 'tour-export',

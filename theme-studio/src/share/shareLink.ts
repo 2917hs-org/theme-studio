@@ -45,6 +45,13 @@ export function readShareLinkParam(url: string | URL = window.location.href): st
   return new URL(url).searchParams.get(SHARE_LINK_PARAM);
 }
 
+/** Decodes a full shareable URL — e.g. one stored in the Community Gallery, not necessarily the current page's — the same way the `?t=` bootstrap in App.tsx does. A URL with no `?t=` at all is just as "malformed" as one whose value doesn't decode. */
+export function decodeShareUrl(url: string): DecodeShareLinkResult {
+  const token = readShareLinkParam(url);
+  if (!token) return { ok: false, reason: 'malformed' };
+  return decodeShareLink(token);
+}
+
 /** Strips `?t=` from the address bar without a navigation/reload — applying a shared link is a one-time action, not something a refresh or Back should redo. */
 export function clearShareLinkParam(): void {
   const url = new URL(window.location.href);
