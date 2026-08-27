@@ -5,6 +5,7 @@ import {
   buildShareLink,
   clearShareLinkParam,
   decodeShareLink,
+  decodeShareUrl,
   encodeShareLink,
   readShareLinkParam,
   shareLinkToImportedTheme,
@@ -106,5 +107,24 @@ describe('shareLinkToImportedTheme', () => {
       pairedIconTheme: null,
     })
     expect(theme.variants).toEqual([{ mode: 'light', chrome: {}, assignments: new Map() }])
+  })
+})
+
+describe('decodeShareUrl', () => {
+  it('decodes a full URL the same way the address bar bootstrap does', () => {
+    const url = buildShareLink(PAYLOAD)
+    const result = decodeShareUrl(url)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.payload.themeName).toBe('My Theme')
+  })
+
+  it('reports malformed for a URL with no ?t= at all — e.g. a Gallery entry with a bad link', () => {
+    expect(decodeShareUrl('https://example.com/')).toEqual({ ok: false, reason: 'malformed' })
+  })
+
+  it('reports old-version for a URL whose payload is from a different schema version', () => {
+    const raw = JSON.stringify({ ...PAYLOAD, schemaVersion: SHARE_LINK_SCHEMA_VERSION + 1 })
+    const encoded = compressToEncodedURIComponent(raw)
+    expect(decodeShareUrl(`https://example.com/?t=${encoded}`)).toEqual({ ok: false, reason: 'old-version' })
   })
 })

@@ -31,11 +31,15 @@ export function BanIcon({ size = 28, className }: IconProps) {
   );
 }
 
+// A down-arrow-into-a-tray ("download") glyph — the vertical mirror of
+// UploadIcon below, sharing the same tray so the two read as a pair
+// (things going out of the app vs. into it) instead of, as before, both
+// being an upward arrow and looking like the same icon.
 export function ExportIcon({ size = 16, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
-      <path d="M12 3v11" />
-      <path d="M7.5 9 12 4.5 16.5 9" />
+      <path d="M12 4v11" />
+      <path d="M7.5 10.5 12 15l4.5-4.5" />
       <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
     </svg>
   );
@@ -275,6 +279,17 @@ export function GenericFileIcon({ size = 14, className }: IconProps) {
     <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
       <path d="M6.5 3.5h8l4 4v13a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1z" strokeLinejoin="round" />
       <path d="M14 3.5v4.5h4.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function GridIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.2" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.2" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.2" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.2" />
     </svg>
   );
 }

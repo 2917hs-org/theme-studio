@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { ChevronIcon } from './icons';
 
 interface CollapsibleSectionProps {
@@ -6,23 +6,23 @@ interface CollapsibleSectionProps {
   icon: ReactNode;
   /** Small piece of context shown next to the title, visible whether the section is open or collapsed (e.g. a count pill, or the currently-selected token). */
   badge?: ReactNode;
-  /** Uncontrolled — each section owns its own open/closed state, so opening one never affects its siblings. */
-  defaultOpen?: boolean;
+  /** Controlled — the parent owns which section (if any) is open, so it can enforce "opening one closes the others." */
+  open: boolean;
+  onToggle: () => void;
   /** Rendered on the outer <section> — lets other UI (e.g. the guided tour) target this section by DOM id without coupling to its styling classes. */
   id?: string;
   children: ReactNode;
 }
 
 /**
- * A disclosure widget for the side panel. Sections are independent, not an
- * exclusive accordion — opening one doesn't force the others shut, since a
- * user mid-edit often wants two open at once (e.g. Inspect + Assigned
- * colors). `defaultOpen` is what actually delivers "focus on one section at
- * a time": only Inspect starts open, so the panel reads as one thing to look
- * at instead of four competing for attention, and the user opts into more.
+ * A disclosure widget for the side panel. Controlled by the parent as a
+ * single-open accordion — clicking one section's header closes whichever
+ * other one was open, so the panel always reads as one thing to look at
+ * rather than several competing for attention. See App.tsx's `openSection`
+ * state for the actual exclusivity logic; this component just renders
+ * whatever `open` it's given and reports clicks via `onToggle`.
  */
-export function CollapsibleSection({ title, icon, badge, defaultOpen = false, id, children }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+export function CollapsibleSection({ title, icon, badge, open, onToggle, id, children }: CollapsibleSectionProps) {
   const contentId = useId();
 
   return (
@@ -30,7 +30,7 @@ export function CollapsibleSection({ title, icon, badge, defaultOpen = false, id
       <button
         type="button"
         className="collapsible-header"
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
         aria-expanded={open}
         aria-controls={contentId}
       >

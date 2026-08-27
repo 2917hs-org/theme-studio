@@ -5,7 +5,7 @@ import { LanguagePicker } from './components/LanguagePicker';
 import { PresetPicker } from './components/PresetPicker';
 import { ModeSwitcher } from './components/ModeSwitcher';
 import { InspectorPanel } from './components/InspectorPanel';
-import { AssignedColorsPanel } from './components/AssignedColorsPanel';
+import { AssignedColorsPanel, groupByColor } from './components/AssignedColorsPanel';
 import { ExportPanel } from './components/ExportPanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -29,6 +29,8 @@ import { clearShareLinkParam, decodeShareLink, readShareLinkParam, shareLinkToIm
 // blocking on that download.
 const CodeEditor = lazy(() => import('./components/CodeEditor').then((m) => ({ default: m.CodeEditor })));
 
+type SectionId = 'inspect' | 'assigned' | 'export' | 'share';
+
 function AppInner() {
   const [language, setLanguage] = useState<LanguageDef>(LANGUAGES[0]);
   const [seed, setSeed] = useState(1);
@@ -37,7 +39,6 @@ function AppInner() {
   const [resetPending, setResetPending] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [showTourInvite, setShowTourInvite] = useState(false);
-  const [pendingShareLink, setPendingShareLink] = useState<ShareLinkPayload | null>(null);
   const {
     assignmentsFor,
     chromeFor,
@@ -53,6 +54,17 @@ function AppInner() {
     resetAll,
     wasRestored,
   } = useAssignments();
+  // The four side-panel sections form a single-open accordion — opening one
+  // closes whichever else was open, so the panel reads as one thing to look
+  // at instead of several competing for attention. Starts on whichever of
+  // Inspect/Assigned actually has something to show given a restored
+  // session, matching the previous per-section `defaultOpen` heuristics.
+  const [openSection, setOpenSection] = useState<SectionId | null>(() =>
+    assignmentsFor('dark').size + assignmentsFor('light').size > 0 ? 'assigned' : 'inspect',
+  );
+  function toggleSection(id: SectionId) {
+    setOpenSection((current) => (current === id ? null : id));
+  }
   const { toastMessage, showToast } = useToast();
   // A theme being applied/imported/used gets a shorter, snappier
   // notification than the app's other toasts (session-restore, Reset) —
@@ -60,6 +72,15 @@ function AppInner() {
   // surfacing news they need a normal beat to notice and read.
   const THEME_TOAST_DURATION_MS = 2000;
   const showThemeToast = (message: string) => showToast(message, THEME_TOAST_DURATION_MS);
+
+  // Applying/importing/remixing a theme (Quick Start, Marketplace, Upload,
+  // Gallery) is exactly the moment "Assigned colors" becomes the
+  // interesting section to be looking at — whichever section the accordion
+  // happened to be on before isn't what the user just did.
+  function handleThemeApplied(message: string) {
+    showThemeToast(message);
+    setOpenSection('assigned');
+  }
 
   useEffect(() => {
     track('app_loaded');
@@ -97,13 +118,13 @@ function AppInner() {
       );
       return;
     }
-    if (wasRestored) {
-      // Don't silently clobber a real autosaved session — ask first.
-      setPendingShareLink(result.payload);
-      return;
-    }
+    // Opening a shared link is already an unambiguous "load this" action —
+    // gating it behind a confirm-dialog button asked the user to approve
+    // something they'd already decided by clicking the link. Applies
+    // immediately either way; the toast is the only feedback, same as any
+    // other theme-applying action in this app (a preset, an import).
     hydrateFromShareLink(result.payload);
-    showThemeToast('Loaded the shared theme.');
+    handleThemeApplied('Loaded the shared theme.');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -142,6 +163,10 @@ function AppInner() {
   }, [wasRestored, showToast]);
 
   const totalAssignments = assignmentsFor('dark').size + assignmentsFor('light').size;
+  // Distinct colors across both modes — what the Assigned colors panel
+  // actually renders one row per, not the raw scope count above (a single
+  // color routinely fans out across dozens of scopes).
+  const totalDistinctColors = groupByColor(assignmentsFor('dark')).length + groupByColor(assignmentsFor('light')).length;
 
   useEffect(() => {
     if (totalAssignments === 0) return;
@@ -159,6 +184,15 @@ function AppInner() {
   }, [totalAssignments]);
 
   const code = useMemo(() => language.generate(seed), [language, seed]);
+
+  // Clicking a real token is the user asking to inspect it — switch the
+  // accordion there so the panel they actually want is what's showing,
+  // whichever one happened to be open before. A selection being *cleared*
+  // (regenerate, language switch) is never itself something to react to.
+  function handleTokenSelect(next: TokenSelection | null) {
+    setSelection(next);
+    if (next) setOpenSection('inspect');
+  }
 
   function handleRegenerate() {
     setSeed((s) => s + 1);
@@ -239,7 +273,10 @@ function AppInner() {
         </div>
         <div className="app-topbar-controls">
           {totalAssignments > 0 && (
-            <div className="app-progress-badge">
+            <div
+              className="app-progress-badge"
+              title={`${totalAssignments} syntax scope${totalAssignments === 1 ? '' : 's'} colored, using ${totalDistinctColors} distinct color${totalDistinctColors === 1 ? '' : 's'} — see them grouped by color in Assigned colors below.`}
+            >
               {totalAssignments} scope{totalAssignments === 1 ? '' : 's'} colored
             </div>
           )}
@@ -250,11 +287,12 @@ function AppInner() {
             <RotateCcwIcon size={12} /> Reset
           </button>
         </div>
+        {toastMessage && <Toast message={toastMessage} />}
       </header>
 
       <main className="app-main">
         <div className="editor-column">
-          <PresetPicker onImported={showThemeToast} onApplied={showThemeToast} language={language} code={code} />
+          <PresetPicker onImported={handleThemeApplied} onApplied={handleThemeApplied} language={language} code={code} />
 
           <LanguagePicker selected={language} onSelect={handleSelectLanguage} />
 
@@ -292,7 +330,7 @@ function AppInner() {
                 </div>
               }
             >
-              <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={setSelection} />
+              <CodeEditor language={language} code={code} isolate={isolateColors} onTokenSelect={handleTokenSelect} />
             </Suspense>
           </div>
         </div>
@@ -303,7 +341,8 @@ function AppInner() {
             id="tour-inspect"
             title="Inspect token"
             icon={<CursorClickIcon size={14} />}
-            defaultOpen
+            open={openSection === 'inspect'}
+            onToggle={() => toggleSection('inspect')}
             badge={
               selection && (
                 <span className="collapsible-badge" title={selection.text}>
@@ -318,31 +357,35 @@ function AppInner() {
           <CollapsibleSection
             title="Assigned colors"
             icon={<SwatchIcon size={14} />}
-            defaultOpen={totalAssignments > 0}
-            badge={totalAssignments > 0 && <span className="collapsible-count">{totalAssignments}</span>}
+            open={openSection === 'assigned'}
+            onToggle={() => toggleSection('assigned')}
+            badge={totalDistinctColors > 0 && <span className="collapsible-count">{totalDistinctColors}</span>}
           >
             <AssignedColorsPanel />
           </CollapsibleSection>
 
           <div className="pinned-footer">
-            <div id="tour-export" className="pinned-footer-section">
-              <div className="pinned-footer-label">
-                <ExportIcon size={14} /> Export theme
-              </div>
+            <CollapsibleSection
+              id="tour-export"
+              title="Export theme"
+              icon={<ExportIcon size={14} />}
+              open={openSection === 'export'}
+              onToggle={() => toggleSection('export')}
+            >
               <ExportPanel />
-            </div>
+            </CollapsibleSection>
 
-            <div className="pinned-footer-section">
-              <div className="pinned-footer-label">
-                <Share2Icon size={14} /> Share
-              </div>
+            <CollapsibleSection
+              title="Share"
+              icon={<Share2Icon size={14} />}
+              open={openSection === 'share'}
+              onToggle={() => toggleSection('share')}
+            >
               <SharePanel onCopied={showThemeToast} />
-            </div>
+            </CollapsibleSection>
           </div>
         </aside>
       </main>
-
-      {toastMessage && <Toast message={toastMessage} />}
 
       {showTourInvite && <TourInvite onStart={startTour} onDismiss={dismissTourInvite} />}
 
@@ -371,26 +414,6 @@ function AppInner() {
         />
       )}
 
-      {pendingShareLink && (
-        <ConfirmDialog
-          title="Load shared theme?"
-          body={
-            <>
-              You have unsaved work from a previous session in this browser. Loading this link replaces it — every
-              color assignment, background/text override, theme name, and paired icon theme — with the shared theme.
-              This can't be undone.
-            </>
-          }
-          confirmLabel="Load shared theme"
-          danger
-          onConfirm={() => {
-            hydrateFromShareLink(pendingShareLink);
-            setPendingShareLink(null);
-            showThemeToast('Loaded the shared theme.');
-          }}
-          onCancel={() => setPendingShareLink(null)}
-        />
-      )}
     </div>
   );
 }

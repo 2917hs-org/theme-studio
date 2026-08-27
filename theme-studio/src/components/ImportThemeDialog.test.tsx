@@ -218,3 +218,17 @@ describe('ImportThemeDialog — search tab', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 })
+
+describe('ImportThemeDialog — gallery tab', () => {
+  // GALLERY_THEMES ships empty (see src/data/gallery.ts) until a real pull
+  // request adds the first entry — this exercises exactly that shipped
+  // state, not a mocked one, so it breaks loudly if the empty state ever
+  // regresses to a blank pane instead of real guidance.
+  it('shows the empty state and a way to submit when the gallery has no entries yet', () => {
+    setup({ initialTab: 'gallery' })
+
+    const emptyState = document.querySelector('.gallery-empty-state')
+    expect(emptyState).toHaveTextContent('Nothing here yet.')
+    expect(screen.getByRole('link', { name: 'Submit it on GitHub' })).toBeInTheDocument()
+  })
+})
