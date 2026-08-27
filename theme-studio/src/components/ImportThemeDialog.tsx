@@ -21,19 +21,12 @@ import { decodeShareUrl, shareLinkToImportedTheme, type ShareLinkPayload } from 
 import { ConfirmDialog } from './ConfirmDialog';
 import { ThemePreview } from './ThemePreview';
 import { IconThemeExplorerPreview } from './IconThemeExplorerPreview';
-import { ImageThemeTab } from './ImageThemeTab';
-import { UploadIcon, SearchIcon, CloseIcon, FolderIcon, GridIcon, ImageIcon } from './icons';
+import { UploadIcon, SearchIcon, CloseIcon, FolderIcon, GridIcon } from './icons';
 
-export type ImportTab = 'upload' | 'search' | 'icon-theme' | 'gallery' | 'image';
+export type ImportTab = 'upload' | 'search' | 'icon-theme' | 'gallery';
 
-/** Where a parsed theme came from — distinguishes the `theme_imported` / `marketplace_theme_forked` / `image_theme_applied` analytics events fired once it actually lands (see finishImport). */
-type ImportSource = 'upload' | 'marketplace' | 'image';
-
-const IMPORT_SOURCE_EVENT: Record<ImportSource, 'theme_imported' | 'marketplace_theme_forked' | 'image_theme_applied'> = {
-  upload: 'theme_imported',
-  marketplace: 'marketplace_theme_forked',
-  image: 'image_theme_applied',
-};
+/** Where a parsed theme came from — distinguishes the `theme_imported` vs `marketplace_theme_forked` analytics events fired once it actually lands (see finishImport). */
+type ImportSource = 'upload' | 'marketplace';
 
 interface DecodedGalleryEntry {
   entry: GalleryEntry;
@@ -299,7 +292,7 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
     // there (see composeAutoThemeName), so a custom name the user already
     // typed into the Theme name box isn't silently overwritten.
     importTheme(theme);
-    track(IMPORT_SOURCE_EVENT[source]);
+    track(source === 'upload' ? 'theme_imported' : 'marketplace_theme_forked');
     onImported(`Imported "${theme.name}" (${describeVariants(theme)}) — tweak the colors and export when ready.`);
     if (closeAfter) onClose();
   }
@@ -506,15 +499,6 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
           <button
             type="button"
             role="tab"
-            aria-selected={tab === 'image'}
-            className={tab === 'image' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
-            onClick={() => setTab('image')}
-          >
-            <ImageIcon size={13} /> Image
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={tab === 'search'}
             className={tab === 'search' ? 'import-dialog-tab import-dialog-tab-active' : 'import-dialog-tab'}
             onClick={() => setTab('search')}
@@ -564,10 +548,6 @@ export function ImportThemeDialog({ onClose, onImported, initialTab = 'upload', 
               </button>
               {uploadError && <div className="import-dialog-error">{uploadError}</div>}
             </div>
-          )}
-
-          {tab === 'image' && (
-            <ImageThemeTab mode={mode} language={language} code={code} onApply={(theme) => handleParsedTheme(theme, true, 'image')} />
           )}
 
           {tab === 'search' && (
