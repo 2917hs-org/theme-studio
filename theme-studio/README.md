@@ -1,8 +1,8 @@
 # VS Code Theme Studio
 
-Assign your own colors to real syntax categories across 13 languages and export a genuinely installable VS Code theme extension (`.vsix`) — no JSON editing, ever.
+Assign your own colors to real syntax categories across 17 languages and export a genuinely installable VS Code theme extension (`.vsix`), or a single-file theme for Windows Terminal, iTerm2, or Zed — no JSON editing, ever.
 
-Click any token in the live Monaco editor to see its real TextMate scope (the same scopes VS Code itself uses for highlighting), assign it a color with the picker, and export a ready-to-install `.vsix` for both dark and light variants.
+Click any token in the live Monaco editor to see its real TextMate scope (the same scopes VS Code itself uses for highlighting), assign it a color with the picker, and export a ready-to-install `.vsix` for both dark and light variants. No blank canvas required, either — start from a built-in preset, an uploaded theme file, a Marketplace search, or a theme someone else already shared.
 
 ## Getting started
 

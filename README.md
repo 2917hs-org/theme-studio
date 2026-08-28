@@ -3,7 +3,7 @@
 [![CI](https://github.com/2917hs-org/theme-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/2917hs-org/theme-studio/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Assign your own colors to real syntax categories across 13 languages and export to VS Code (`.vsix`), Windows Terminal, iTerm2, or Zed — no JSON editing, ever. Runs entirely in the browser: click any token in a live Monaco editor, see its real TextMate scope, pick a color, and export. Start from a built-in preset, an uploaded theme file, a Marketplace search, or a community-submitted theme in the Gallery — then share your finished theme with anyone via a single link, no account needed.
+Assign your own colors to real syntax categories across 17 languages and export to VS Code (`.vsix`), Windows Terminal, iTerm2, or Zed — no JSON editing, ever. Runs entirely in the browser: click any token in a live Monaco editor, see its real TextMate scope, pick a color, and export. Start from a built-in preset, an uploaded theme file, a Marketplace search, or a community-submitted theme in the Gallery — then share your finished theme with anyone via a single link, no account needed.
 
 The app lives in [`theme-studio/`](theme-studio) — see [`theme-studio/README.md`](theme-studio/README.md) for setup, scripts, and architecture notes.
 

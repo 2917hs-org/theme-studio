@@ -23,7 +23,7 @@ const STEPS: TourStep[] = [
   {
     targetId: 'tour-quick-start',
     title: 'Start with a preset',
-    body: 'Seven built-in presets apply a full color scheme in one click — a fast way to see the app in action or start a theme you fine-tune from here.',
+    body: 'Six built-in presets apply a full color scheme in one click — a fast way to see the app in action or start a theme you fine-tune from here.',
   },
   {
     targetId: 'tour-upload',
