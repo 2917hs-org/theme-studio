@@ -31,11 +31,6 @@ const STEPS: TourStep[] = [
     body: "Upload a .json or .vsix theme file and it loads straight into the editor, ready to tweak and re-export as your own.",
   },
   {
-    targetId: 'tour-image',
-    title: 'Or pull one from a photo',
-    body: "Drop in a photo — a desk setup, a poster, a logo — and it extracts a color palette and turns it into a full theme, ready to fine-tune.",
-  },
-  {
     targetId: 'tour-search',
     title: 'Or fork one from the Marketplace',
     body: 'Search real, published VS Code themes and start editing a copy immediately — no download, no account. The same dialog has an Icon Theme tab to pair a matching file icon theme, too.',
