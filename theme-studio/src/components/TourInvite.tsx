@@ -21,7 +21,7 @@ export function TourInvite({ onStart, onDismiss }: TourInviteProps) {
       <CompassIcon size={16} className="tour-invite-icon" />
       <div className="tour-invite-body">
         <div className="tour-invite-title">New here?</div>
-        <p className="tour-invite-text">A 30-second tour of how this works — click real code, assign colors, export a theme.</p>
+        <p className="tour-invite-text">A quick tour of how this works — click real code, assign colors, export or share a theme.</p>
         <div className="tour-invite-actions">
           <button type="button" className="tour-invite-start-btn" onClick={onStart}>
             Take the tour

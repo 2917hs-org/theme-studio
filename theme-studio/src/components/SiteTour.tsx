@@ -23,12 +23,17 @@ const STEPS: TourStep[] = [
   {
     targetId: 'tour-quick-start',
     title: 'Start with a preset',
-    body: 'Seven built-in presets apply a full color scheme in one click — a fast way to see the app in action or start a theme you fine-tune from here.',
+    body: 'Six built-in presets apply a full color scheme in one click — a fast way to see the app in action or start a theme you fine-tune from here.',
   },
   {
     targetId: 'tour-upload',
     title: 'Or bring your own theme',
     body: "Upload a .json or .vsix theme file and it loads straight into the editor, ready to tweak and re-export as your own.",
+  },
+  {
+    targetId: 'tour-image',
+    title: 'Or pull one from a photo',
+    body: "Drop in a photo — a desk setup, a poster, a logo — and it extracts a color palette and turns it into a full theme, ready to fine-tune.",
   },
   {
     targetId: 'tour-search',

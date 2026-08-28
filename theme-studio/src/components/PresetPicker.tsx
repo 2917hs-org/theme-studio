@@ -148,6 +148,7 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
               <span className="preset-action-card-label">Import</span>
             </button>
             <button
+              id="tour-image"
               type="button"
               className="preset-action-card"
               onClick={() => setImportTab('image')}
