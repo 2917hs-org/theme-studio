@@ -1,25 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useAssignments } from '../store/useAssignments';
 import type { ThemeMode } from '../theme/mode';
 import { defaultBackgroundFor } from '../theme/baseline';
 import { parseColorToHex, relativeLuminance } from '../theme/colorParse';
-import { MoonIcon, SunIcon } from './icons';
-
-const MODES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
-  { value: 'dark', label: 'Dark', icon: <MoonIcon size={13} /> },
-  { value: 'light', label: 'Light', icon: <SunIcon size={13} /> },
-];
 
 /**
- * Pinned above every collapsible section. Dark/Light only, on purpose — you
- * design one theme at a time (Monaco can only preview one), so there's
- * nothing for a "Both" option to mean here beyond confusing the single
- * "what am I working on" decision this control makes. Picking a mode sets
- * what you're actively coloring, the live preview above, and what the
- * Export section will bundle — all three follow this one choice.
+ * Pinned above every collapsible section. Just the background color — which
+ * mode that implies (dark vs light) is inferred from the color itself, not
+ * picked explicitly, so there's no separate toggle to keep in sync.
  */
 export function ModeSwitcher() {
-  const { mode, setMode, assignmentsFor, chrome, setChrome } = useAssignments();
+  const { mode, setMode, chrome, setChrome } = useAssignments();
   const [draft, setDraft] = useState(chrome.background ?? '');
   const [error, setError] = useState<string | null>(null);
 
@@ -31,10 +22,9 @@ export function ModeSwitcher() {
     setError(null);
   }, [mode, chrome.background]);
 
-  // A background color implies a mode — pick a dark swatch and you're
-  // clearly designing the dark variant now, whatever the toggle above
-  // still says. Auto-follows the toggle so it never fights a manual
-  // Dark/Light click; it only steps in when the picked color disagrees.
+  // A background color implies a mode — dark swatches build the dark
+  // variant, light ones the light variant. There's no separate toggle for
+  // this; the color you pick here is the only signal.
   function commit(hex: string) {
     setError(null);
     const impliedMode: ThemeMode = relativeLuminance(hex) < 0.5 ? 'dark' : 'light';
@@ -60,30 +50,8 @@ export function ModeSwitcher() {
   return (
     <div id="tour-mode-switcher" className="pinned-controls">
       <div className="field-label">
-        Mode
-        <div className="mode-toggle mode-toggle-full" role="radiogroup" aria-label="Mode you're coloring — also sets the live preview and what gets exported">
-          {MODES.map((m) => {
-            const count = assignmentsFor(m.value).size;
-            return (
-              <button
-                key={m.value}
-                role="radio"
-                aria-checked={mode === m.value}
-                className={mode === m.value ? 'mode-toggle-btn mode-toggle-btn-active' : 'mode-toggle-btn'}
-                onClick={() => setMode(m.value)}
-              >
-                {m.icon} {m.label}
-                {count > 0 && <span className="mode-toggle-count">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
-        <span className="field-hint">Sets what you're coloring below, and what gets exported.</span>
-      </div>
-
-      <div className="field-label">
         <div className="field-label-row">
-          Background color
+          <span className="field-label-title">Background color</span>
           <div className="color-controls">
             <input
               type="color"
@@ -91,7 +59,7 @@ export function ModeSwitcher() {
               value={defaultBackgroundFor(mode, chrome)}
               onChange={(e) => commit(e.target.value)}
               title="OS color picker (also supports the eyedropper tool in some browsers)"
-              aria-label={`Pick the ${mode} mode code snippet's background color`}
+              aria-label="Pick the code snippet's background color"
             />
             <input
               type="text"
@@ -101,7 +69,7 @@ export function ModeSwitcher() {
               onChange={(e) => handleDraftChange(e.target.value)}
               onBlur={handleDraftFinish}
               onKeyDown={(e) => e.key === 'Enter' && handleDraftFinish()}
-              aria-label={`Type a hex, rgb(), or hsl() background color for ${mode} mode`}
+              aria-label="Type a hex, rgb(), or hsl() background color"
             />
             {chrome.background && (
               <button className="clear-color-btn" onClick={() => setChrome(mode, { background: undefined })}>
@@ -110,10 +78,7 @@ export function ModeSwitcher() {
             )}
           </div>
         </div>
-        <span className="field-hint">
-          The code snippet's own background — separate from your OS/browser theme. Picking a dark color switches the
-          Mode above to Dark, a light color switches it to Light.
-        </span>
+        <span className="field-hint">The code snippet's own background — separate from your OS/browser theme.</span>
         {error && <div className="inspector-error">{error}</div>}
       </div>
     </div>

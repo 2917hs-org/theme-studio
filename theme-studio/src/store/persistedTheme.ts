@@ -3,6 +3,9 @@ import type { ThemeMode } from '../theme/mode';
 import type { PairedIconTheme } from '../marketplace/searchMarketplace';
 
 const STORAGE_KEY = 'theme-studio:autosave:v1';
+// A session left untouched this long is treated as abandoned — the next
+// visit starts fresh rather than resuming a stale draft.
+const SESSION_TTL_MS = 60 * 60 * 1000;
 
 export interface PersistedTheme {
   version: 1;
@@ -14,7 +17,12 @@ export interface PersistedTheme {
   pairedIconTheme?: PairedIconTheme | null;
 }
 
-function isValid(v: unknown): v is PersistedTheme {
+interface StoredEnvelope {
+  savedAt: number;
+  state: PersistedTheme;
+}
+
+function isValidState(v: unknown): v is PersistedTheme {
   if (!v || typeof v !== 'object') return false;
   const p = v as Record<string, unknown>;
   return (
@@ -28,7 +36,18 @@ function isValid(v: unknown): v is PersistedTheme {
   );
 }
 
-/** Reads the autosaved session, if any. Never throws — a missing, disabled, or corrupted store just means starting fresh. */
+function isValidEnvelope(v: unknown): v is StoredEnvelope {
+  if (!v || typeof v !== 'object') return false;
+  const p = v as Record<string, unknown>;
+  return typeof p.savedAt === 'number' && isValidState(p.state);
+}
+
+/**
+ * Reads the autosaved session, if any. Never throws — a missing, disabled,
+ * or corrupted store just means starting fresh. A session older than
+ * SESSION_TTL_MS is treated the same way — stale drafts are discarded
+ * rather than resumed.
+ */
 export function loadPersistedTheme(): PersistedTheme | null {
   let raw: string | null;
   try {
@@ -39,7 +58,12 @@ export function loadPersistedTheme(): PersistedTheme | null {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isValid(parsed) ? parsed : null;
+    if (!isValidEnvelope(parsed)) return null;
+    if (Date.now() - parsed.savedAt > SESSION_TTL_MS) {
+      clearPersistedTheme();
+      return null;
+    }
+    return parsed.state;
   } catch {
     return null;
   }
@@ -48,7 +72,7 @@ export function loadPersistedTheme(): PersistedTheme | null {
 /** Fails silently — autosave is a convenience, not a guarantee, so a full quota or disabled storage shouldn't surface an error to the user. */
 export function savePersistedTheme(state: PersistedTheme): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), state }));
   } catch {
     // ignore
   }

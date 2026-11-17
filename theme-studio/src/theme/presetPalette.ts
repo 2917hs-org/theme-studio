@@ -310,3 +310,17 @@ export const ROLE_SCOPES: Record<string, { field: PresetField; scopes: string[] 
     scopes: ['markup.changed'],
   },
 };
+
+/**
+ * Expands a full palette (one color per PresetField) into per-scope
+ * assignments — the same fan-out PresetPicker applies for a Quick Start
+ * preset, shared so a generated palette lands exactly like an authored one.
+ */
+export function expandPalette(palette: Record<PresetField, string>): Map<string, string> {
+  const assignments = new Map<string, string>();
+  for (const { field, scopes } of Object.values(ROLE_SCOPES)) {
+    const color = palette[field];
+    for (const scope of scopes) assignments.set(scope, color);
+  }
+  return assignments;
+}

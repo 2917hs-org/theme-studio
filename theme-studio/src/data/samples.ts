@@ -154,7 +154,45 @@ console.log(summary ?? "none");
 `;
 };
 
-export const typescript: SampleGenerator = (seed) => variantOf(seed, [typescriptA, typescriptB]);
+const typescriptC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `type ${p.entity}Event =
+  | { kind: "${p.word}"; id: number; ${p.field}?: string }
+  | { kind: "removed"; id: number };
+
+function is${p.entity}Removed(event: ${p.entity}Event): event is Extract<${p.entity}Event, { kind: "removed" }> {
+  return event.kind === "removed";
+}
+
+type Readonly${p.entity} = Readonly<{ id: number; ${p.field}: string }>;
+
+class ${p.entity}Bus {
+  private listeners: Array<(event: ${p.entity}Event) => void> = [];
+
+  on(listener: (event: ${p.entity}Event) => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  ${p.verb}(event: ${p.entity}Event): void {
+    for (const listener of this.listeners) listener(event);
+  }
+}
+
+const bus = new ${p.entity}Bus();
+const unsubscribe = bus.on((event) => {
+  const label = is${p.entity}Removed(event) ? "removed" : event.${p.field} ?? "${p.word}";
+  console.log(\`#\${event.id}: \${label}\`);
+});
+
+bus.${p.verb}({ kind: "${p.word}", id: 1, ${p.field}: "${p.word}" });
+unsubscribe();
+`;
+};
+
+export const typescript: SampleGenerator = (seed) => variantOf(seed, [typescriptA, typescriptB, typescriptC]);
 
 // ---------- JavaScript ----------
 
@@ -232,7 +270,41 @@ ${p.verb}All(${p.entityLower}s).then((done) => {
 `;
 };
 
-export const javascript: SampleGenerator = (seed) => variantOf(seed, [javascriptA, javascriptB]);
+const javascriptC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `function* ${p.verb}Batches(items, size = 3) {
+  for (let i = 0; i < items.length; i += size) {
+    yield items.slice(i, i + size);
+  }
+}
+
+function highlight(strings, ...values) {
+  return strings.reduce((acc, str, i) => \`\${acc}\${str}\${values[i] ?? ""}\`, "");
+}
+
+function make${p.entity}Counter() {
+  let ${p.entityLower}Count = 0;
+  return {
+    ${p.verb}: () => ++${p.entityLower}Count,
+    get total() {
+      return ${p.entityLower}Count;
+    },
+  };
+}
+
+const counter = make${p.entity}Counter();
+const items = Array.from({ length: ${p.count} }, (_, id) => ({ id, ${p.field}: "${p.word}" }));
+
+for (const batch of ${p.verb}Batches(items)) {
+  counter.${p.verb}();
+  console.log(highlight\`batch of \${batch.length} item(s)\`);
+}
+
+console.log(\`processed \${counter.total} batch(es)\`);
+`;
+};
+
+export const javascript: SampleGenerator = (seed) => variantOf(seed, [javascriptA, javascriptB, javascriptC]);
 
 // ---------- Python ----------
 
@@ -327,7 +399,54 @@ print(f"{len(batches)} batch(es) ready")
 `;
 };
 
-export const python: SampleGenerator = (seed) => variantOf(seed, [pythonA, pythonB]);
+const pythonC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `import asyncio
+from typing import Protocol
+
+
+class ${p.entity}Source(Protocol):
+    async def ${p.verb}(self, id: int) -> dict: ...
+
+
+def rate_limited(max_calls: int):
+    def decorator(func):
+        calls = 0
+
+        async def wrapper(*args, **kwargs):
+            nonlocal calls
+            if calls >= max_calls:
+                raise RuntimeError("rate limit exceeded")
+            calls += 1
+            return await func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+@rate_limited(max_calls=${p.count})
+async def ${p.verb}_${p.entityLower}(id: int) -> dict:
+    await asyncio.sleep(0)
+    return {"id": id, "${p.field}": "${p.word}"}
+
+
+async def main() -> None:
+    results = [await ${p.verb}_${p.entityLower}(i) for i in range(3)]
+
+    for item in results:
+        match item:
+            case {"${p.field}": "${p.word}", "id": id}:
+                print(f"{id}: matched ${p.word}")
+            case _:
+                print("no match")
+
+
+asyncio.run(main())
+`;
+};
+
+export const python: SampleGenerator = (seed) => variantOf(seed, [pythonA, pythonB, pythonC]);
 
 // ---------- Java ----------
 
@@ -414,7 +533,54 @@ class Default${p.entity}Source implements ${p.entity}Source {
 `;
 };
 
-export const java: SampleGenerator = (seed) => variantOf(seed, [javaA, javaB]);
+const javaC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package com.example.registry;
+
+import java.util.List;
+import java.util.function.Predicate;
+
+public sealed interface ${p.entity}Event permits ${p.entity}Created, ${p.entity}Removed {
+}
+
+public record ${p.entity}Created(int id, String ${p.field}) implements ${p.entity}Event {
+}
+
+public record ${p.entity}Removed(int id) implements ${p.entity}Event {
+}
+
+public final class ${p.entity}EventLog {
+    private final List<${p.entity}Event> events = new java.util.ArrayList<>();
+
+    public void ${p.verb}(${p.entity}Event event) {
+        events.add(event);
+    }
+
+    public String describe(${p.entity}Event event) {
+        return switch (event) {
+            case ${p.entity}Created c -> "created #" + c.id() + " (" + c.${p.field}() + ")";
+            case ${p.entity}Removed r -> "removed #" + r.id();
+        };
+    }
+
+    public long countMatching(Predicate<${p.entity}Event> predicate) {
+        return events.stream().filter(predicate).count();
+    }
+
+    public static void main(String[] args) {
+        var log = new ${p.entity}EventLog();
+        log.${p.verb}(new ${p.entity}Created(1, "${p.word}"));
+        log.${p.verb}(new ${p.entity}Removed(1));
+
+        for (var event : log.events) {
+            System.out.println(log.describe(event));
+        }
+    }
+}
+`;
+};
+
+export const java: SampleGenerator = (seed) => variantOf(seed, [javaA, javaB, javaC]);
 
 // ---------- C# ----------
 
@@ -501,7 +667,55 @@ foreach (var id in ids.Where(i => i % 3 != 0))
 `;
 };
 
-export const csharp: SampleGenerator = (seed) => variantOf(seed, [csharpA, csharpB]);
+const csharpC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Example.Registry;
+
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class ${p.entity}TagAttribute : Attribute
+{
+    public string Label { get; }
+    public ${p.entity}TagAttribute(string label) => Label = label;
+}
+
+public abstract record ${p.entity}Event(int Id);
+public sealed record ${p.entity}Created(int Id, string ${cap(p.field)}) : ${p.entity}Event(Id);
+public sealed record ${p.entity}Removed(int Id) : ${p.entity}Event(Id);
+
+[${p.entity}Tag("${p.word}")]
+public static class ${p.entity}EventExtensions
+{
+    public static string Describe(this ${p.entity}Event @event) => @event switch
+    {
+        ${p.entity}Created c => $"created #{c.Id} ({c.${cap(p.field)}})",
+        ${p.entity}Removed r => $"removed #{r.Id}",
+        _ => "unknown",
+    };
+}
+
+var events = new List<${p.entity}Event>
+{
+    new ${p.entity}Created(1, "${p.word}"),
+    new ${p.entity}Removed(2),
+};
+
+var summary =
+    from e in events
+    where e is ${p.entity}Created
+    select e.Describe();
+
+foreach (var line in summary.Take(${p.count}))
+{
+    Console.WriteLine(line);
+}
+`;
+};
+
+export const csharp: SampleGenerator = (seed) => variantOf(seed, [csharpA, csharpB, csharpC]);
 
 // ---------- C++ ----------
 
@@ -604,7 +818,68 @@ int main() {
 `;
 };
 
-export const cpp: SampleGenerator = (seed) => variantOf(seed, [cppA, cppB]);
+const cppC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <functional>
+#include <string>
+#include <variant>
+#include <vector>
+#include <iostream>
+
+namespace registry {
+
+constexpr int kDefaultCapacity = ${p.count};
+
+struct Created { int id; std::string ${p.field}; };
+struct Removed { int id; };
+using Event = std::variant<Created, Removed>;
+
+class EventLog {
+public:
+    void ${p.verb}(Event event) {
+        events_.push_back(std::move(event));
+        if (on_${p.verb}_) on_${p.verb}_(events_.back());
+    }
+
+    void on_event(std::function<void(const Event&)> callback) {
+        on_${p.verb}_ = std::move(callback);
+    }
+
+    std::size_t size() const noexcept { return events_.size(); }
+
+private:
+    std::vector<Event> events_;
+    std::function<void(const Event&)> on_${p.verb}_;
+};
+
+std::string describe(const Event& event) {
+    return std::visit([](const auto& e) -> std::string {
+        using T = std::decay_t<decltype(e)>;
+        if constexpr (std::is_same_v<T, Created>) {
+            return "created #" + std::to_string(e.id) + " (" + e.${p.field} + ")";
+        } else {
+            return "removed #" + std::to_string(e.id);
+        }
+    }, event);
+}
+
+}  // namespace registry
+
+int main() {
+    registry::EventLog log;
+    log.on_event([](const registry::Event& e) {
+        std::cout << registry::describe(e) << "\\n";
+    });
+
+    log.${p.verb}(registry::Created{1, "${p.word}"});
+    log.${p.verb}(registry::Removed{1});
+
+    std::cout << log.size() << " of " << registry::kDefaultCapacity << " capacity used\\n";
+}
+`;
+};
+
+export const cpp: SampleGenerator = (seed) => variantOf(seed, [cppA, cppB, cppC]);
 
 // ---------- Go ----------
 
@@ -722,7 +997,74 @@ func main() {
 `;
 };
 
-export const go: SampleGenerator = (seed) => variantOf(seed, [goA, goB]);
+const goC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+type Identifiable interface {
+	GetID() int
+}
+
+type ${p.entity} struct {
+	ID     int
+	${cap(p.field)} string
+}
+
+func (r ${p.entity}) GetID() int { return r.ID }
+
+type Base struct {
+	CreatedAt time.Time
+}
+
+type Tracked${p.entity} struct {
+	Base
+	${p.entity}
+}
+
+func Filter[T Identifiable](items []T, keep func(T) bool) []T {
+	out := make([]T, 0, len(items))
+	for _, item := range items {
+		if keep(item) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func ${cap(p.verb)}WithTimeout(ctx context.Context, id int) (${p.entity}, error) {
+	ctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+
+	select {
+	case <-ctx.Done():
+		return ${p.entity}{}, ctx.Err()
+	default:
+		return ${p.entity}{ID: id, ${cap(p.field)}: "${p.word}"}, nil
+	}
+}
+
+func main() {
+	items := make([]${p.entity}, 0, ${p.count})
+	for i := 0; i < ${p.count}; i++ {
+		items = append(items, ${p.entity}{ID: i, ${cap(p.field)}: "${p.word}"})
+	}
+
+	active := Filter(items, func(r ${p.entity}) bool { return r.ID%2 == 0 })
+	fmt.Printf("%d of %d active\\n", len(active), len(items))
+
+	tracked := Tracked${p.entity}{Base: Base{CreatedAt: time.Now()}, ${p.entity}: items[0]}
+	fmt.Println(tracked.GetID())
+}
+`;
+};
+
+export const go: SampleGenerator = (seed) => variantOf(seed, [goA, goB, goC]);
 
 // ---------- Rust ----------
 
@@ -818,7 +1160,58 @@ fn main() {
 `;
 };
 
-export const rust: SampleGenerator = (seed) => variantOf(seed, [rustA, rustB]);
+const rustC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `use std::fmt;
+
+trait Notifier {
+    fn notify(&self, message: &str);
+}
+
+struct Logger;
+
+impl Notifier for Logger {
+    fn notify(&self, message: &str) {
+        println!("[log] {message}");
+    }
+}
+
+struct ${p.entity}<'a> {
+    id: u32,
+    ${p.field}: &'a str,
+}
+
+impl<'a> fmt::Display for ${p.entity}<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "#{} ({})", self.id, self.${p.field})
+    }
+}
+
+fn ${p.verb}_all<T: fmt::Display>(items: &[T], notifier: &dyn Notifier) {
+    for item in items {
+        notifier.notify(&format!("${p.verb}: {item}"));
+    }
+}
+
+macro_rules! ${p.entityLower}_vec {
+    ($($id:expr),* $(,)?) => {
+        vec![$(${p.entity} { id: $id, ${p.field}: "${p.word}" }),*]
+    };
+}
+
+fn main() {
+    let items = ${p.entityLower}_vec![1, 2, 3];
+    let notifier: Box<dyn Notifier> = Box::new(Logger);
+
+    ${p.verb}_all(&items[..items.len().min(${p.count})], notifier.as_ref());
+
+    let describe = |count: usize| -> String { format!("{count} item(s) processed") };
+    println!("{}", describe(items.len()));
+}
+`;
+};
+
+export const rust: SampleGenerator = (seed) => variantOf(seed, [rustA, rustB, rustC]);
 
 // ---------- PHP ----------
 
@@ -926,7 +1319,452 @@ foreach ($service->${p.verb}All() as $item) {
 `;
 };
 
-export const php: SampleGenerator = (seed) => variantOf(seed, [phpA, phpB]);
+const phpC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `<?php
+
+declare(strict_types=1);
+
+namespace App\\Registry;
+
+#[Attribute]
+class Tracked
+{
+    public function __construct(public string $label = "${p.word}") {}
+}
+
+abstract class ${p.entity}Base
+{
+    abstract public function ${p.verb}(): \\Generator;
+
+    public function first(): mixed
+    {
+        foreach ($this->${p.verb}() as $item) {
+            return $item;
+        }
+        return null;
+    }
+}
+
+#[Tracked("${p.word}")]
+class ${p.entity}Stream extends ${p.entity}Base
+{
+    public function __construct(private int $limit = ${p.count}) {}
+
+    public function ${p.verb}(): \\Generator
+    {
+        for ($i = 0; $i < $this->limit; $i++) {
+            yield ["id" => $i, "${p.field}" => "${p.word}"];
+        }
+    }
+}
+
+$stream = new ${p.entity}Stream();
+$mapper = strtoupper(...);
+
+foreach ($stream->${p.verb}() as $item) {
+    echo $mapper($item["${p.field}"]) . "\\n";
+}
+
+echo ($stream->first()["${p.field}"] ?? "none") . "\\n";
+`;
+};
+
+export const php: SampleGenerator = (seed) => variantOf(seed, [phpA, phpB, phpC]);
+
+// ---------- C ----------
+
+const cA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_${p.entity.toUpperCase()} ${p.count}
+
+/* A single tracked record. */
+typedef struct {
+    int id;
+    char ${p.field}[64];
+} ${p.entity};
+
+${p.entity} *${p.verb}_${p.entityLower}(int id, const char *${p.field}) {
+    ${p.entity} *item = malloc(sizeof(${p.entity}));
+    if (item == NULL) {
+        return NULL;
+    }
+    item->id = id;
+    strncpy(item->${p.field}, ${p.field}, sizeof(item->${p.field}) - 1);
+    return item;
+}
+
+int main(void) {
+    // Build one record and print it.
+    ${p.entity} *item = ${p.verb}_${p.entityLower}(1, "${p.word}");
+    if (item != NULL) {
+        printf("id=%d ${p.field}=%s\\n", item->id, item->${p.field});
+        free(item);
+    }
+    return 0;
+}
+`;
+};
+
+const cB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+
+enum ${p.entity}Status {
+    STATUS_PENDING,
+    STATUS_ACTIVE,
+    STATUS_ARCHIVED
+};
+
+// Returns a human-readable label for a status value.
+const char *status_label(enum ${p.entity}Status status) {
+    switch (status) {
+        case STATUS_PENDING:
+            return "waiting";
+        case STATUS_ACTIVE:
+            return "in progress";
+        default:
+            return "done";
+    }
+}
+
+int main(void) {
+    enum ${p.entity}Status statuses[${p.count}];
+    for (int i = 0; i < ${p.count}; i++) {
+        statuses[i] = (i % 2 == 0) ? STATUS_ACTIVE : STATUS_PENDING;
+    }
+
+    for (int i = 0; i < ${p.count}; i++) {
+        printf("%d: %s\\n", i, status_label(statuses[i]));
+    }
+    return 0;
+}
+`;
+};
+
+const cC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `#include <stdio.h>
+
+typedef struct ${p.entity} {
+    int id;
+    double ${p.field2};
+    void (*${p.verb})(struct ${p.entity} *self);
+} ${p.entity};
+
+static void ${p.verb}_impl(${p.entity} *self) {
+    self->${p.field2} *= 1.1;
+    printf("${p.verb} -> %.2f\\n", self->${p.field2});
+}
+
+static const ${p.entity} DEFAULT_${p.entity.toUpperCase()} = {
+    .id = 0,
+    .${p.field2} = 0.0,
+    .${p.verb} = ${p.verb}_impl,
+};
+
+int main(void) {
+    ${p.entity} item = DEFAULT_${p.entity.toUpperCase()};
+    item.id = 42;
+    item.${p.field2} = 3.5;
+    item.${p.verb}(&item);
+    return 0;
+}
+`;
+};
+
+export const c: SampleGenerator = (seed) => variantOf(seed, [cA, cB, cC]);
+
+// ---------- PowerShell ----------
+
+const powershellA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `# Fetches and formats ${p.entityLower} records for reporting.
+function Get-${p.entity} {
+    param(
+        [int]$Id,
+        [string]$${cap(p.field)} = "${p.word}"
+    )
+
+    $record = @{
+        Id      = $Id
+        ${cap(p.field)} = $${cap(p.field)}
+        Created = Get-Date
+    }
+
+    Write-Host "Fetched $($record.Id): $($record.${cap(p.field)})"
+    return $record
+}
+
+$items = 1..${p.count} | ForEach-Object {
+    Get-${p.entity} -Id $_ -${cap(p.field)} "${p.word}-$_"
+}
+
+$items | Where-Object { $_.Id % 2 -eq 0 } | Format-Table -AutoSize
+`;
+};
+
+const powershellB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `enum ${p.entity}Status {
+    Pending
+    Active
+    Archived
+}
+
+class ${p.entity} {
+    [int]$Id
+    [string]$${cap(p.field)}
+    [${p.entity}Status]$Status = [${p.entity}Status]::Pending
+
+    ${p.entity}([int]$id, [string]$${p.field}) {
+        $this.Id = $id
+        $this.${cap(p.field)} = $${p.field}
+    }
+
+    [void] ${cap(p.verb)}() {
+        $this.Status = [${p.entity}Status]::Active
+        Write-Host "${cap(p.verb)}d $($this.Id)"
+    }
+}
+
+$item = [${p.entity}]::new(1, "${p.word}")
+$item.${cap(p.verb)}()
+`;
+};
+
+const powershellC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `function Invoke-${p.entity}Sync {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int[]]$Ids
+    )
+
+    $results = @()
+    foreach ($id in $Ids) {
+        try {
+            if ($id -lt 0) {
+                throw "Invalid id: $id"
+            }
+            $results += [PSCustomObject]@{
+                Id     = $id
+                Status = "${p.word}"
+            }
+        }
+        catch {
+            Write-Warning "Skipping $($id): $($_.Exception.Message)"
+        }
+    }
+    return $results
+}
+
+$params = @{
+    Ids = 1..${p.count}
+}
+
+Invoke-${p.entity}Sync @params | ConvertTo-Json
+`;
+};
+
+export const powershell: SampleGenerator = (seed) => variantOf(seed, [powershellA, powershellB, powershellC]);
+
+// ---------- Kotlin ----------
+
+const kotlinA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+enum class ${p.entity}Status {
+    PENDING, ACTIVE, ARCHIVED
+}
+
+data class ${p.entity}(
+    val id: Int,
+    val ${p.field}: String,
+    val status: ${p.entity}Status = ${p.entity}Status.PENDING
+)
+
+fun ${p.entity}.${p.verb}(): ${p.entity} = copy(status = ${p.entity}Status.ACTIVE)
+
+fun main() {
+    val items = (1..${p.count}).map { ${p.entity}(it, "${p.word}-$it") }
+    val active = items.map { it.${p.verb}() }.filter { it.status == ${p.entity}Status.ACTIVE }
+
+    println("\${active.size} of \${items.size} active")
+}
+`;
+};
+
+const kotlinB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+sealed class ${p.entity}Event {
+    data class ${cap(p.verb)}ed(val id: Int) : ${p.entity}Event()
+    object Failed : ${p.entity}Event()
+}
+
+class ${p.entity}Processor {
+    companion object {
+        const val MAX_RETRIES = ${p.count}
+    }
+
+    fun handle(event: ${p.entity}Event): String = when (event) {
+        is ${p.entity}Event.${cap(p.verb)}ed -> "Handled #\${event.id}"
+        ${p.entity}Event.Failed -> "Failed after $MAX_RETRIES retries"
+    }
+}
+
+fun main() {
+    val processor = ${p.entity}Processor()
+    println(processor.handle(${p.entity}Event.${cap(p.verb)}ed(1)))
+    println(processor.handle(${p.entity}Event.Failed))
+}
+`;
+};
+
+const kotlinC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `package registry
+
+interface Repository<T> {
+    fun findById(id: Int): T?
+    fun ${p.verb}(item: T)
+}
+
+class ${p.entity}Repository : Repository<${p.entity}> {
+    private val items = mutableMapOf<Int, ${p.entity}>()
+
+    override fun findById(id: Int): ${p.entity}? = items[id]
+
+    override fun ${p.verb}(item: ${p.entity}) {
+        items[item.id] = item
+    }
+}
+
+data class ${p.entity}(val id: Int, val ${p.field}: String)
+
+fun <T> describe(items: List<T>): String = "\${items.size} items"
+
+fun main() {
+    val repo = ${p.entity}Repository()
+    repeat(${p.count}) { i ->
+        repo.${p.verb}(${p.entity}(i, "${p.word}"))
+    }
+    println(describe((0 until ${p.count}).mapNotNull { repo.findById(it) }))
+}
+`;
+};
+
+export const kotlin: SampleGenerator = (seed) => variantOf(seed, [kotlinA, kotlinB, kotlinC]);
+
+// ---------- Dart ----------
+
+const dartA: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `class ${p.entity} {
+  final int id;
+  final String ${p.field};
+  bool isActive;
+
+  ${p.entity}({required this.id, required this.${p.field}, this.isActive = false});
+
+  @override
+  String toString() => 'Item #$id: $${p.field}';
+}
+
+Future<${p.entity}> ${p.verb}Async(int id) async {
+  await Future.delayed(const Duration(milliseconds: 10));
+  return ${p.entity}(id: id, ${p.field}: '${p.word}', isActive: id.isEven);
+}
+
+void main() async {
+  final items = <${p.entity}>[];
+  for (var i = 0; i < ${p.count}; i++) {
+    items.add(await ${p.verb}Async(i));
+  }
+
+  final active = items.where((item) => item.isActive).toList();
+  print('\${active.length} of \${items.length} active');
+}
+`;
+};
+
+const dartB: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `enum ${p.entity}Status { pending, active, archived }
+
+String describeStatus(${p.entity}Status status) {
+  switch (status) {
+    case ${p.entity}Status.pending:
+      return 'waiting';
+    case ${p.entity}Status.active:
+      return 'in progress';
+    case ${p.entity}Status.archived:
+      return 'done';
+  }
+}
+
+void main() {
+  final items = <int, ${p.entity}Status>{
+    for (var i = 0; i < ${p.count}; i++)
+      i: (i.isEven ? ${p.entity}Status.active : ${p.entity}Status.pending),
+  };
+
+  items.forEach((id, status) {
+    print('#$id -> \${describeStatus(status)}');
+  });
+}
+`;
+};
+
+const dartC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `mixin Loggable {
+  void log(String message) => print('[LOG] $message');
+}
+
+abstract class Repository<T> {
+  T? findById(int id);
+  void ${p.verb}(T item);
+}
+
+class ${p.entity} {
+  final int id;
+  final String ${p.field};
+  const ${p.entity}(this.id, this.${p.field});
+}
+
+class ${p.entity}Repository extends Object with Loggable implements Repository<${p.entity}> {
+  final Map<int, ${p.entity}> _items = {};
+
+  @override
+  ${p.entity}? findById(int id) => _items[id];
+
+  @override
+  void ${p.verb}(${p.entity} item) {
+    _items[item.id] = item;
+    log('${cap(p.verb)}d #\${item.id}');
+  }
+}
+
+void main() {
+  final repo = ${p.entity}Repository();
+  for (var i = 0; i < ${p.count}; i++) {
+    repo.${p.verb}(${p.entity}(i, '${p.word}'));
+  }
+  print('Total: \${repo._items.length}');
+}
+`;
+};
+
+export const dart: SampleGenerator = (seed) => variantOf(seed, [dartA, dartB, dartC]);
 
 // ---------- HTML ----------
 
@@ -1005,7 +1843,57 @@ const htmlB: SampleGenerator = (seed) => {
 `;
 };
 
-export const html: SampleGenerator = (seed) => variantOf(seed, [htmlA, htmlB]);
+const htmlC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${p.entity} Panel</title>
+  <template id="${p.entityLower}-row-template">
+    <li class="${p.entityLower}-row">
+      <span class="label"></span>
+      <button type="button" data-action="${p.verb}">${cap(p.verb)}</button>
+    </li>
+  </template>
+</head>
+<body>
+  <section aria-labelledby="${p.entityLower}-heading">
+    <h1 id="${p.entityLower}-heading">${p.entity}s</h1>
+
+    <dialog id="confirm-${p.verb}">
+      <p>${cap(p.verb)} this ${p.entityLower}?</p>
+      <button value="cancel">Cancel</button>
+      <button value="confirm" autofocus>Confirm</button>
+    </dialog>
+
+    <ul id="${p.entityLower}-list" aria-live="polite"></ul>
+  </section>
+
+  <script type="module">
+    class ${p.entity}Row extends HTMLElement {
+      static observedAttributes = ["${p.field}"];
+
+      connectedCallback() {
+        const template = document.getElementById("${p.entityLower}-row-template");
+        this.attachShadow({ mode: "open" }).appendChild(template.content.cloneNode(true));
+      }
+
+      attributeChangedCallback(name, _old, value) {
+        if (name === "${p.field}") {
+          this.shadowRoot.querySelector(".label").textContent = value ?? "${p.word}";
+        }
+      }
+    }
+
+    customElements.define("${p.entityLower}-row", ${p.entity}Row);
+  </script>
+</body>
+</html>
+`;
+};
+
+export const html: SampleGenerator = (seed) => variantOf(seed, [htmlA, htmlB, htmlC]);
 
 // ---------- CSS ----------
 
@@ -1093,7 +1981,51 @@ const cssB: SampleGenerator = (seed) => {
 `;
 };
 
-export const css: SampleGenerator = (seed) => variantOf(seed, [cssA, cssB]);
+const cssC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `.${p.entityLower}-panel {
+  container-type: inline-size;
+  container-name: ${p.entityLower}-panel;
+
+  padding-inline: clamp(1rem, 2vw, 2rem);
+  padding-block: 1rem;
+
+  & > .header {
+    font-weight: 600;
+
+    &:hover {
+      color: color-mix(in srgb, currentColor 80%, transparent);
+    }
+  }
+
+  &:has(> .badge[data-status="${p.word}"]) {
+    border-inline-start: 3px solid dodgerblue;
+  }
+}
+
+@container ${p.entityLower}-panel (min-width: 480px) {
+  .${p.entityLower}-panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.${p.entityLower}-badge {
+  --badge-count: ${p.count};
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  aspect-ratio: 1 / 1;
+}
+
+@layer components {
+  .${p.entityLower}-badge::after {
+    content: counter(badge, decimal-leading-zero);
+  }
+}
+`;
+};
+
+export const css: SampleGenerator = (seed) => variantOf(seed, [cssA, cssB, cssC]);
 
 // ---------- JSON ----------
 
@@ -1140,7 +2072,36 @@ const jsonB: SampleGenerator = (seed) => {
 `;
 };
 
-export const json: SampleGenerator = (seed) => variantOf(seed, [jsonA, jsonB]);
+const jsonC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `{
+  "$schema": "https://example.com/schemas/${p.entityLower}.json",
+  "${p.entityLower}": {
+    "id": 1,
+    "${p.field}": "${p.word}",
+    "score": -12.5,
+    "ratio": 0.${p.count}25,
+    "coordinates": [40.7128, -74.006],
+    "metadata": {
+      "flags": [true, false, null],
+      "labels": ["${p.word}", "${p.field}", null],
+      "nested": {
+        "depth": 2,
+        "items": [
+          { "id": 1, "value": 1e3 },
+          { "id": 2, "value": null }
+        ]
+      }
+    }
+  },
+  "history": [],
+  "checksum": "sha256:0000000000000000000000000000000000000000000000000000000000",
+  "verified": false
+}
+`;
+};
+
+export const json: SampleGenerator = (seed) => variantOf(seed, [jsonA, jsonB, jsonC]);
 
 // ---------- SQL ----------
 
@@ -1199,4 +2160,38 @@ WHERE ${p.field} = 'archived' AND ${p.field2} < NOW() - INTERVAL '365 days';
 `;
 };
 
-export const sql: SampleGenerator = (seed) => variantOf(seed, [sqlA, sqlB]);
+const sqlC: SampleGenerator = (seed) => {
+  const p = pools(seed);
+  return `-- ${p.entity} maintenance: transaction, procedure, and a trigger
+BEGIN TRANSACTION;
+
+CREATE OR REPLACE FUNCTION ${p.entityLower}_${p.verb}(p_id INT, p_${p.field} VARCHAR)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE ${p.entityLower}_registry
+    SET ${p.field} = p_${p.field}
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        INSERT INTO ${p.entityLower}_registry (id, ${p.field})
+        VALUES (p_id, p_${p.field});
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_${p.entityLower}_audit
+AFTER UPDATE ON ${p.entityLower}_registry
+FOR EACH ROW
+EXECUTE FUNCTION log_${p.entityLower}_change();
+
+SELECT id, ${p.field} FROM ${p.entityLower}_registry WHERE ${p.field} = '${p.word}'
+UNION
+SELECT id, ${p.field} FROM ${p.entityLower}_archive WHERE ${p.field} = '${p.word}'
+ORDER BY id
+LIMIT ${p.count};
+
+COMMIT;
+`;
+};
+
+export const sql: SampleGenerator = (seed) => variantOf(seed, [sqlA, sqlB, sqlC]);

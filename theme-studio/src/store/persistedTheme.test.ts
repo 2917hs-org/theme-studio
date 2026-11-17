@@ -41,6 +41,28 @@ describe('loadPersistedTheme / savePersistedTheme', () => {
     localStorage.setItem('theme-studio:autosave:v1', JSON.stringify({ version: 1, mode: 'dark' }))
     expect(loadPersistedTheme()).toBeNull()
   })
+
+  it('restores a session saved within the last hour', () => {
+    localStorage.setItem(
+      'theme-studio:autosave:v1',
+      JSON.stringify({ savedAt: Date.now() - 59 * 60 * 1000, state: SAMPLE }),
+    )
+    expect(loadPersistedTheme()).toEqual(SAMPLE)
+  })
+
+  it('returns null and clears storage for a session older than the 1 hour TTL', () => {
+    localStorage.setItem(
+      'theme-studio:autosave:v1',
+      JSON.stringify({ savedAt: Date.now() - 61 * 60 * 1000, state: SAMPLE }),
+    )
+    expect(loadPersistedTheme()).toBeNull()
+    expect(localStorage.getItem('theme-studio:autosave:v1')).toBeNull()
+  })
+
+  it('returns null for a legacy (pre-TTL) unwrapped record', () => {
+    localStorage.setItem('theme-studio:autosave:v1', JSON.stringify(SAMPLE))
+    expect(loadPersistedTheme()).toBeNull()
+  })
 })
 
 describe('clearPersistedTheme', () => {
