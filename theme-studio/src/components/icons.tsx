@@ -293,3 +293,12 @@ export function GridIcon({ size = 14, className }: IconProps) {
     </svg>
   );
 }
+
+export function SparklesIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...base} className={className}>
+      <path d="M10 4l1.8 4.7L16.5 10.5l-4.7 1.8L10 17l-1.8-4.7L3.5 10.5l4.7-1.8z" />
+      <path d="M18 3v4M16 5h4M18.5 15v4M16.5 17h4" />
+    </svg>
+  );
+}

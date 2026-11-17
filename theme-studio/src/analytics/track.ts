@@ -40,6 +40,7 @@ export type AnalyticsEvent =
   | 'sample_regenerated'
   | 'scope_color_assigned'
   | 'preset_applied'
+  | 'prompt_theme_applied'
   | 'theme_imported'
   | 'marketplace_theme_forked'
   | 'gallery_theme_viewed'

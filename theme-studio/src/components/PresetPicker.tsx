@@ -1,11 +1,12 @@
 import { lazy, Suspense, useState } from 'react';
 import { THEME_PRESETS, type ThemePreset } from '../theme/presets';
-import { ROLE_SCOPES } from '../theme/presetPalette';
+import { expandPalette } from '../theme/presetPalette';
 import { useAssignments } from '../store/useAssignments';
 import { track } from '../analytics/track';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { ImportTab } from './ImportThemeDialog';
-import { GridIcon, SearchIcon, UploadIcon } from './icons';
+import { GridIcon, SearchIcon, SparklesIcon, UploadIcon } from './icons';
+import { DescribeThemeDialog } from './DescribeThemeDialog';
 import type { LanguageDef } from '../data/languages';
 
 // Clusters adjacent same-category presets so the picker can render one
@@ -56,16 +57,12 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
   // work if you clicked a beat too slowly (glanced away, the row reflowed,
   // whatever) and the window quietly expired with no feedback at all.
   const [pendingPreset, setPendingPreset] = useState<ThemePreset | null>(null);
+  const [describeOpen, setDescribeOpen] = useState(false);
 
   function applyPreset(preset: ThemePreset) {
-    // Every role in ROLE_SCOPES expands to its field's color on `preset` —
     // ~20 authored colors fan out into ~160 real scope assignments, the
     // same "small palette, many scopes" shape a published theme has.
-    const next = new Map<string, string>();
-    for (const { field, scopes } of Object.values(ROLE_SCOPES)) {
-      const color = preset[field];
-      for (const scope of scopes) next.set(scope, color);
-    }
+    const next = expandPalette(preset);
     // Only one theme is ever in progress at a time — applying a preset
     // replaces the whole theme-in-progress (both modes), the same as
     // importing or forking a Marketplace theme, rather than merging into
@@ -158,6 +155,16 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
               <span className="preset-action-card-label">Marketplace</span>
             </button>
             <button
+              id="tour-describe"
+              type="button"
+              className="preset-action-card"
+              onClick={() => setDescribeOpen(true)}
+              title="Describe the theme you want in words — like “dark and easy on the eyes” — and get a ready-made theme to tweak"
+            >
+              <SparklesIcon size={15} />
+              <span className="preset-action-card-label">Describe</span>
+            </button>
+            <button
               id="tour-gallery"
               type="button"
               className="preset-action-card"
@@ -187,6 +194,16 @@ export function PresetPicker({ onImported, onApplied, language, code }: PresetPi
             code={code}
           />
         </Suspense>
+      )}
+
+      {describeOpen && (
+        <DescribeThemeDialog
+          onClose={() => setDescribeOpen(false)}
+          onApplied={(message) => onApplied?.(message)}
+          willReplaceTheme={wouldOverwrite()}
+          language={language}
+          code={code}
+        />
       )}
 
       {pendingPreset && (
