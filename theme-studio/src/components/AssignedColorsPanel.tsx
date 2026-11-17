@@ -1,6 +1,5 @@
 import { useAssignments } from '../store/useAssignments';
 import { friendlyLabelFor } from '../data/scopeLabels';
-import { TrashIcon } from './icons';
 import type { ThemeMode } from '../theme/mode';
 
 const MODES = ['dark', 'light'] as const;
@@ -65,18 +64,8 @@ export function AssignedColorsPanel() {
       {visibleModes.map((m) => {
         const modeAssignments = assignmentsFor(m);
         const groups = groupByColor(modeAssignments);
-        const modeLabel = m === 'dark' ? 'Dark' : 'Light';
         return (
           <div className="assignments-summary" key={m}>
-            <div className="assignments-summary-title">
-              <span className="assignments-summary-left">
-                <span className="assignments-mode-tag">{modeLabel}</span>
-                {groups.length} color{groups.length === 1 ? '' : 's'}
-              </span>
-              <button className="clear-all-btn" onClick={() => handleClearClick(m)} aria-label="Clear All" title="Clear All">
-                <TrashIcon size={13} />
-              </button>
-            </div>
             <ul className="assignments-list">
               {groups.map(({ color, scopes }) => {
                 const primaryScope = scopes[0];
@@ -99,6 +88,11 @@ export function AssignedColorsPanel() {
                   </li>
                 );
               })}
+              <li className="clear-all-row">
+                <button className="clear-all-btn" onClick={() => handleClearClick(m)}>
+                  Clear All
+                </button>
+              </li>
             </ul>
           </div>
         );

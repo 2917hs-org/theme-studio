@@ -219,7 +219,11 @@ button {
   height: 28px;
   background: transparent;
   color: #c9d1d9;
-  border: 1px solid #30363d;
+  /* The topbar is always-dark chrome (not themed), so this stays a fixed
+     color rather than var(--text-dim): #30363d (--border) reads as barely
+     there until hover, so use the topbar's own dim-text gray instead —
+     visible at rest, same fix as .share-btn elsewhere in this file. */
+  border: 1px solid #9198a1;
   border-radius: var(--radius-sm);
   padding: 0 10px;
   font-size: 11.5px;
@@ -231,7 +235,7 @@ button {
 
 .reset-app-btn:hover {
   background: #21262d;
-  border-color: #6e7681;
+  border-color: #f0f6fc;
   color: #f0f6fc;
 }
 
@@ -1260,33 +1264,6 @@ button {
   margin-bottom: 6px;
 }
 
-.assignments-summary-title {
-  color: var(--text-dim);
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.assignments-summary-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.assignments-mode-tag {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
 .assignments-summary-hint {
   color: var(--text-faint);
   font-style: italic;
@@ -1365,23 +1342,33 @@ button {
   background: rgba(244, 135, 113, 0.1);
 }
 
+.clear-all-row {
+  padding: 8px 0 2px !important;
+  justify-content: center;
+}
+
 .clear-all-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   background: transparent;
-  border: none;
+  /* --border-soft reads as barely-there until hover — see .share-btn for the
+     same fix: --text-dim stays clearly visible at rest in both themes. */
+  border: 1px solid var(--text-dim);
   color: var(--text-dim);
   cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
-  flex: none;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background var(--transition), color var(--transition);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
 .clear-all-btn:hover {
   color: var(--danger-text-strong);
+  border-color: var(--danger-text-strong);
   background: rgba(244, 135, 113, 0.1);
 }
 
@@ -2713,5 +2700,232 @@ button {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Describe-a-theme dialog ---------- */
+
+.describe-dialog {
+  max-width: 760px;
+  max-height: min(760px, 94vh);
+}
+
+.describe-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.describe-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-inset);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 11px 12px;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.describe-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.describe-vibes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.describe-chip {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.describe-chip:hover {
+  color: var(--text-strong);
+  border-color: var(--accent);
+}
+
+.describe-chip-active,
+.describe-chip-active:hover {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--hover-bg);
+}
+
+.describe-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.describe-results {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.describe-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.describe-option {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition), transform 100ms ease;
+}
+
+.describe-option:hover {
+  border-color: var(--hover-border);
+}
+
+.describe-option-selected,
+.describe-option-selected:hover {
+  border-color: var(--accent);
+}
+
+.describe-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.describe-swatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  border-radius: var(--radius-sm);
+}
+
+.describe-swatch-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.describe-option-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-strong);
+  padding: 0 2px;
+}
+
+/* The preview is the real editor sample, tokenized by the real grammar
+   (see ThemePreview). It reserves room for 20+ lines up front so switching
+   options or languages never makes the dialog jump. */
+.describe-preview {
+  min-width: 0;
+  min-height: 404px;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.describe-preview .theme-preview-code {
+  flex: 1;
+  min-width: 0;
+  max-height: 460px;
+}
+
+@media (max-width: 640px) {
+  .describe-results {
+    grid-template-columns: 1fr;
+  }
+
+  .describe-options {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .describe-option {
+    flex: 1 1 120px;
+  }
+
+  .describe-summary {
+    flex-basis: 100%;
+  }
+
+  .describe-preview .theme-preview-code {
+    font-size: 10.5px;
+  }
+}
+
+.describe-summary {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.describe-check {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* Footer stays put while the body scrolls, so "Use this theme" is always reachable on a short window. */
+.describe-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: none;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.describe-warning {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.describe-footer .confirm-confirm-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.describe-footer .confirm-actions button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .describe-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .describe-footer .confirm-actions {
+    justify-content: stretch;
+  }
+
+  .describe-footer .confirm-actions button {
+    flex: 1;
+  }
+
+  .describe-warning {
+    text-align: center;
   }
 }

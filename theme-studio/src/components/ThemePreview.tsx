@@ -8,6 +8,8 @@ interface ThemePreviewProps {
   language: LanguageDef;
   code: string;
   variant: ImportedVariant;
+  /** Keep showing the previous result while a new one tokenizes, instead of flashing a loading state — for callers that flip between variants of the same code. */
+  keepWhileLoading?: boolean;
 }
 
 /**
@@ -18,13 +20,13 @@ interface ThemePreviewProps {
  * editor on the page), so a second editor showing different colors would
  * fight the real one instead of coexisting with it. See previewTokenize.ts.
  */
-export function ThemePreview({ language, code, variant }: ThemePreviewProps) {
+export function ThemePreview({ language, code, variant, keepWhileLoading = false }: ThemePreviewProps) {
   const [lines, setLines] = useState<PreviewToken[][] | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLines(null);
+    if (!keepWhileLoading) setLines(null);
     setFailed(false);
     tokenizeForPreview(language, code, variant.assignments, variant.mode, variant.chrome)
       .then((result) => {
@@ -36,7 +38,7 @@ export function ThemePreview({ language, code, variant }: ThemePreviewProps) {
     return () => {
       cancelled = true;
     };
-  }, [language, code, variant]);
+  }, [language, code, variant, keepWhileLoading]);
 
   if (failed) {
     return <div className="theme-preview-empty">Couldn't render a preview for this theme.</div>;
